@@ -40,11 +40,22 @@ export default function SignUp() {
       });
 
       if (error) {
-        toast({
-          title: "Error",
-          description: error.message,
-          variant: "destructive",
-        });
+        // Check specifically for user_already_exists error
+        if (error.message.includes("User already registered")) {
+          toast({
+            title: "Account Exists",
+            description: "An account with this email already exists. Please sign in instead.",
+            variant: "destructive",
+          });
+          // Optionally redirect to sign in page after a short delay
+          setTimeout(() => navigate("/signin"), 2000);
+        } else {
+          toast({
+            title: "Error",
+            description: error.message,
+            variant: "destructive",
+          });
+        }
         return;
       }
 
