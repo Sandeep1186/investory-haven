@@ -18,6 +18,7 @@ export default function SignUp() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
     if (password !== confirmPassword) {
       toast({
         title: "Error",
@@ -40,14 +41,18 @@ export default function SignUp() {
       });
 
       if (error) {
-        // Check specifically for user_already_exists error
-        if (error.message.includes("User already registered")) {
+        if (error.message.includes("email_provider_disabled")) {
           toast({
-            title: "Account Exists",
-            description: "An account with this email already exists. Please sign in instead.",
+            title: "Service Unavailable",
+            description: "Email sign-up is currently disabled. Please contact support or try again later.",
             variant: "destructive",
           });
-          // Optionally redirect to sign in page after a short delay
+        } else if (error.message.includes("User already registered")) {
+          toast({
+            title: "Account Exists",
+            description: "An account with this email already exists. Redirecting to sign in...",
+            variant: "destructive",
+          });
           setTimeout(() => navigate("/signin"), 2000);
         } else {
           toast({
@@ -67,10 +72,10 @@ export default function SignUp() {
         navigate("/signin");
       }
     } catch (error) {
-      console.error("Error:", error);
+      console.error("Signup error:", error);
       toast({
         title: "Error",
-        description: "An unexpected error occurred",
+        description: "An unexpected error occurred. Please try again.",
         variant: "destructive",
       });
     } finally {
