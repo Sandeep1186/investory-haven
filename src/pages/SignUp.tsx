@@ -41,17 +41,10 @@ export default function SignUp() {
       });
 
       if (error) {
-        if (error.message.includes("email_provider_disabled")) {
-          toast({
-            title: "Service Unavailable",
-            description: "Email sign-up is currently disabled. Please contact support or try again later.",
-            variant: "destructive",
-          });
-        } else if (error.message.includes("User already registered")) {
+        if (error.message.includes("User already registered")) {
           toast({
             title: "Account Exists",
             description: "An account with this email already exists. Redirecting to sign in...",
-            variant: "destructive",
           });
           setTimeout(() => navigate("/signin"), 2000);
         } else {
@@ -101,6 +94,7 @@ export default function SignUp() {
                 required
                 className="w-full"
                 placeholder="Enter your full name"
+                disabled={isLoading}
               />
             </div>
             <div className="space-y-2">
@@ -113,6 +107,7 @@ export default function SignUp() {
                 required
                 className="w-full"
                 placeholder="Enter your email"
+                disabled={isLoading}
               />
             </div>
             <div className="space-y-2">
@@ -125,6 +120,7 @@ export default function SignUp() {
                 required
                 className="w-full"
                 placeholder="Create a password"
+                disabled={isLoading}
               />
             </div>
             <div className="space-y-2">
@@ -137,6 +133,7 @@ export default function SignUp() {
                 required
                 className="w-full"
                 placeholder="Confirm your password"
+                disabled={isLoading}
               />
             </div>
             <Button type="submit" className="w-full" disabled={isLoading}>
