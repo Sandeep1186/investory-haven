@@ -56,14 +56,19 @@ export function AddInvestmentForm({ isOpen, onClose, type, title }: AddInvestmen
         throw new Error("Insufficient funds");
       }
 
-      // Create the investment
+      // Get current user's ID
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Not authenticated");
+
+      // Create the investment with user_id
       const { error: investmentError } = await supabase
         .from("investments")
         .insert({
           symbol: symbol.toUpperCase(),
           type,
           quantity: Number(quantity),
-          purchase_price: marketData.price
+          purchase_price: marketData.price,
+          user_id: user.id // Add this line to satisfy TypeScript
         });
 
       if (investmentError) throw investmentError;
@@ -72,7 +77,7 @@ export function AddInvestmentForm({ isOpen, onClose, type, title }: AddInvestmen
       const { error: updateError } = await supabase
         .from("profiles")
         .update({ balance: profile.balance - totalAmount })
-        .eq("id", (await supabase.auth.getUser()).data.user?.id);
+        .eq("id", user.id);
 
       if (updateError) throw updateError;
 
