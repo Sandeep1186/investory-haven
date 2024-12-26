@@ -4,6 +4,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
 } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -23,31 +24,57 @@ export function MarketItemDetails({ isOpen, onClose, symbol }: MarketItemDetails
       if (!symbol) return;
       
       try {
+        // Extract the symbol from the name if needed (e.g., "Apple Inc." -> "AAPL")
+        const symbolToSearch = symbol.includes(" ") ? 
+          await getSymbolFromName(symbol) : 
+          symbol.toUpperCase();
+
+        if (!symbolToSearch) {
+          throw new Error("Market item not found");
+        }
+
         const { data, error } = await supabase
           .from("market_data")
           .select("*")
-          .eq("symbol", symbol)
-          .single();
+          .eq("symbol", symbolToSearch)
+          .maybeSingle();
 
         if (error) throw error;
+        if (!data) throw new Error("Market item not found");
+        
         setItem(data);
-      } catch (error) {
-        toast.error("Failed to load market item details");
+      } catch (error: any) {
+        toast.error(error.message || "Failed to load market item details");
       } finally {
         setLoading(false);
       }
     };
 
     if (isOpen) {
+      setLoading(true);
       fetchDetails();
     }
   }, [symbol, isOpen]);
+
+  // Helper function to get symbol from name
+  const getSymbolFromName = async (name: string) => {
+    const { data } = await supabase
+      .from("market_data")
+      .select("symbol")
+      .eq("name", name)
+      .maybeSingle();
+    
+    return data?.symbol;
+  };
 
   return (
     <Dialog open={isOpen} onOpenChange={() => onClose()}>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
           <DialogTitle>{item?.name || "Loading..."}</DialogTitle>
+          <DialogDescription>
+            View detailed information about this investment
+          </DialogDescription>
         </DialogHeader>
         {loading ? (
           <div className="p-4">Loading...</div>
