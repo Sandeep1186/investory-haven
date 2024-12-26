@@ -7,10 +7,11 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Eye } from "lucide-react";
+import { Eye, PlusCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { MarketItemDetails } from "./MarketItemDetails";
+import { AddInvestmentForm } from "./AddInvestmentForm";
 
 interface MarketListProps {
   isOpen: boolean;
@@ -23,6 +24,7 @@ export function MarketList({ isOpen, onClose, type, title }: MarketListProps) {
   const [items, setItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedSymbol, setSelectedSymbol] = useState<string | null>(null);
+  const [showAddForm, setShowAddForm] = useState(false);
 
   useEffect(() => {
     const fetchItems = async () => {
@@ -52,7 +54,13 @@ export function MarketList({ isOpen, onClose, type, title }: MarketListProps) {
       <Dialog open={isOpen} onOpenChange={() => onClose()}>
         <DialogContent className="sm:max-w-[800px]">
           <DialogHeader>
-            <DialogTitle>{title}</DialogTitle>
+            <div className="flex justify-between items-center">
+              <DialogTitle>{title}</DialogTitle>
+              <Button onClick={() => setShowAddForm(true)} size="sm">
+                <PlusCircle className="h-4 w-4 mr-2" />
+                Add {type}
+              </Button>
+            </div>
           </DialogHeader>
           {loading ? (
             <div className="p-4">Loading...</div>
@@ -97,6 +105,13 @@ export function MarketList({ isOpen, onClose, type, title }: MarketListProps) {
         isOpen={!!selectedSymbol}
         onClose={() => setSelectedSymbol(null)}
         symbol={selectedSymbol!}
+      />
+
+      <AddInvestmentForm
+        isOpen={showAddForm}
+        onClose={() => setShowAddForm(false)}
+        type={type}
+        title={`Add ${type}`}
       />
     </>
   );
