@@ -4,6 +4,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -46,26 +47,37 @@ export function AddInvestmentForm({ isOpen, onClose, type, title, symbol: initia
 
       // Calculate total investment amount
       const totalAmount = Number(quantity) * marketData.price;
-
-      // Get user's current balance
-      const { data: profile, error: profileError } = await supabase
-        .from("profiles")
-        .select("balance")
-        .single();
-
-      if (profileError || !profile) {
-        throw new Error("Couldn't fetch user balance");
-      }
-
-      if (profile.balance < totalAmount) {
-        throw new Error("Insufficient funds");
-      }
+      console.log("Total amount to invest:", totalAmount);
 
       // Get current user's ID
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Not authenticated");
 
-      // Create the investment with user_id
+      // Get user's current balance
+      const { data: profile, error: profileError } = await supabase
+        .from("profiles")
+        .select("balance")
+        .eq("id", user.id)
+        .maybeSingle();
+
+      if (profileError) {
+        console.error("Profile error:", profileError);
+        throw new Error("Couldn't fetch user balance");
+      }
+
+      if (!profile) {
+        console.error("No profile found");
+        throw new Error("User profile not found");
+      }
+
+      console.log("Current balance:", profile.balance);
+      console.log("Required amount:", totalAmount);
+
+      if (profile.balance < totalAmount) {
+        throw new Error(`Insufficient funds. You need ₹${totalAmount} but have ₹${profile.balance}`);
+      }
+
+      // Create the investment
       const { error: investmentError } = await supabase
         .from("investments")
         .insert({
@@ -76,15 +88,22 @@ export function AddInvestmentForm({ isOpen, onClose, type, title, symbol: initia
           user_id: user.id
         });
 
-      if (investmentError) throw investmentError;
+      if (investmentError) {
+        console.error("Investment error:", investmentError);
+        throw investmentError;
+      }
 
       // Update user's balance
+      const newBalance = profile.balance - totalAmount;
       const { error: updateError } = await supabase
         .from("profiles")
-        .update({ balance: profile.balance - totalAmount })
+        .update({ balance: newBalance })
         .eq("id", user.id);
 
-      if (updateError) throw updateError;
+      if (updateError) {
+        console.error("Update balance error:", updateError);
+        throw updateError;
+      }
 
       toast.success("Investment added successfully");
       onClose();
@@ -102,6 +121,9 @@ export function AddInvestmentForm({ isOpen, onClose, type, title, symbol: initia
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
+          <DialogDescription>
+            Enter the quantity you want to purchase. Your current balance will be checked before the transaction.
+          </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="grid gap-4 py-4">
           <div className="grid gap-2">
@@ -129,7 +151,7 @@ export function AddInvestmentForm({ isOpen, onClose, type, title, symbol: initia
             />
           </div>
           <Button type="submit" disabled={loading}>
-            {loading ? "Adding..." : "Add Investment"}
+            {loading ? "Processing..." : "Buy Investment"}
           </Button>
         </form>
       </DialogContent>
