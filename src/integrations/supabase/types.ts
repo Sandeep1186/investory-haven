@@ -50,6 +50,48 @@ export type Database = {
           },
         ]
       }
+      market_data: {
+        Row: {
+          change: number
+          created_at: string | null
+          description: string | null
+          id: string
+          minimum_investment: number | null
+          name: string
+          price: number
+          risk_level: string | null
+          symbol: string
+          type: string
+          updated_at: string | null
+        }
+        Insert: {
+          change: number
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          minimum_investment?: number | null
+          name: string
+          price: number
+          risk_level?: string | null
+          symbol: string
+          type: string
+          updated_at?: string | null
+        }
+        Update: {
+          change?: number
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          minimum_investment?: number | null
+          name?: string
+          price?: number
+          risk_level?: string | null
+          symbol?: string
+          type?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           balance: number | null
