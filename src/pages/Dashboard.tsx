@@ -52,10 +52,13 @@ export default function Dashboard() {
               </span>
             </div>
             <div className="flex items-center gap-8">
-              <Button variant="ghost" onClick={() => setShowMutualFunds(true)}>
+              <Button variant="ghost" onClick={() => navigate("/stocks")}>
+                Explore Stocks
+              </Button>
+              <Button variant="ghost" onClick={() => navigate("/mutual-funds")}>
                 Explore Mutual Funds
               </Button>
-              <Button variant="ghost" onClick={() => setShowBonds(true)}>
+              <Button variant="ghost" onClick={() => navigate("/bonds")}>
                 View Bonds
               </Button>
               <div className="flex items-center gap-2">

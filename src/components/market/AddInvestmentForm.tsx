@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
@@ -15,12 +15,17 @@ interface AddInvestmentFormProps {
   onClose: () => void;
   type: string;
   title: string;
+  symbol?: string | null;
 }
 
-export function AddInvestmentForm({ isOpen, onClose, type, title }: AddInvestmentFormProps) {
-  const [symbol, setSymbol] = useState("");
+export function AddInvestmentForm({ isOpen, onClose, type, title, symbol: initialSymbol }: AddInvestmentFormProps) {
+  const [symbol, setSymbol] = useState(initialSymbol || "");
   const [quantity, setQuantity] = useState("");
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    setSymbol(initialSymbol || "");
+  }, [initialSymbol]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -68,7 +73,7 @@ export function AddInvestmentForm({ isOpen, onClose, type, title }: AddInvestmen
           type,
           quantity: Number(quantity),
           purchase_price: marketData.price,
-          user_id: user.id // Add this line to satisfy TypeScript
+          user_id: user.id
         });
 
       if (investmentError) throw investmentError;
@@ -107,6 +112,7 @@ export function AddInvestmentForm({ isOpen, onClose, type, title }: AddInvestmen
               onChange={(e) => setSymbol(e.target.value)}
               placeholder="Enter symbol (e.g., AAPL)"
               required
+              readOnly={!!initialSymbol}
             />
           </div>
           <div className="grid gap-2">
