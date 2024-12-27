@@ -16,6 +16,9 @@ export type Database = {
           purchase_date: string | null
           purchase_price: number
           quantity: number
+          sold: boolean | null
+          sold_at: string | null
+          sold_price: number | null
           symbol: string
           type: string
           user_id: string
@@ -26,6 +29,9 @@ export type Database = {
           purchase_date?: string | null
           purchase_price: number
           quantity: number
+          sold?: boolean | null
+          sold_at?: string | null
+          sold_price?: number | null
           symbol: string
           type: string
           user_id: string
@@ -36,6 +42,9 @@ export type Database = {
           purchase_date?: string | null
           purchase_price?: number
           quantity?: number
+          sold?: boolean | null
+          sold_at?: string | null
+          sold_price?: number | null
           symbol?: string
           type?: string
           user_id?: string
