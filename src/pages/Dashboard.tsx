@@ -6,6 +6,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
 import { MarketList } from "@/components/market/MarketList";
 import { PortfolioSection } from "@/components/portfolio/PortfolioSection";
+import { Input } from "@/components/ui/input";
+import { toast } from "sonner";
 
 export default function Dashboard() {
   const navigate = useNavigate();
@@ -13,6 +15,7 @@ export default function Dashboard() {
   const [profile, setProfile] = useState<any>(null);
   const [showMutualFunds, setShowMutualFunds] = useState(false);
   const [showBonds, setShowBonds] = useState(false);
+  const [fundsAmount, setFundsAmount] = useState("");
 
   useEffect(() => {
     const getUser = async () => {
@@ -34,6 +37,41 @@ export default function Dashboard() {
     
     getUser();
   }, [navigate]);
+
+  const handleAddFunds = async () => {
+    if (!fundsAmount || isNaN(Number(fundsAmount)) || Number(fundsAmount) <= 0) {
+      toast.error("Please enter a valid amount");
+      return;
+    }
+
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Not authenticated");
+
+      const { data: currentProfile, error: fetchError } = await supabase
+        .from("profiles")
+        .select("balance")
+        .eq("id", user.id)
+        .single();
+
+      if (fetchError) throw fetchError;
+
+      const newBalance = (currentProfile?.balance || 0) + Number(fundsAmount);
+
+      const { error: updateError } = await supabase
+        .from("profiles")
+        .update({ balance: newBalance })
+        .eq("id", user.id);
+
+      if (updateError) throw updateError;
+
+      setProfile({ ...profile, balance: newBalance });
+      setFundsAmount("");
+      toast.success(`Successfully added ₹${fundsAmount}`);
+    } catch (error: any) {
+      toast.error("Failed to add funds: " + error.message);
+    }
+  };
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -103,7 +141,7 @@ export default function Dashboard() {
             <div className="flex justify-between items-start">
               <div>
                 <p className="text-sm font-medium text-gray-500">Account Balance</p>
-                <h3 className="text-2xl font-bold mt-1">₹{profile?.balance || '10,000'}</h3>
+                <h3 className="text-2xl font-bold mt-1">₹{profile?.balance?.toLocaleString() || '0'}</h3>
                 <p className="text-sm text-gray-500 mt-1">Available Funds</p>
               </div>
               <Wallet className="h-8 w-8 text-green-500" />
@@ -119,12 +157,14 @@ export default function Dashboard() {
         <div className="mt-8">
           <Card className="p-6">
             <div className="flex items-center gap-4">
-              <input
+              <Input
                 type="number"
                 placeholder="Enter amount"
-                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                value={fundsAmount}
+                onChange={(e) => setFundsAmount(e.target.value)}
+                className="flex-1"
               />
-              <Button>Add Funds</Button>
+              <Button onClick={handleAddFunds}>Add Funds</Button>
             </div>
           </Card>
         </div>
