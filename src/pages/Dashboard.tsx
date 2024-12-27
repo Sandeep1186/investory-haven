@@ -93,10 +93,10 @@ export default function Dashboard() {
               <Button variant="ghost" onClick={() => navigate("/stocks")}>
                 Explore Stocks
               </Button>
-              <Button variant="ghost" onClick={() => navigate("/mutual-funds")}>
+              <Button variant="ghost" onClick={() => setShowMutualFunds(true)}>
                 Explore Mutual Funds
               </Button>
-              <Button variant="ghost" onClick={() => navigate("/bonds")}>
+              <Button variant="ghost" onClick={() => setShowBonds(true)}>
                 View Bonds
               </Button>
               <div className="flex items-center gap-2">
@@ -172,7 +172,7 @@ export default function Dashboard() {
         <MarketList
           isOpen={showMutualFunds}
           onClose={() => setShowMutualFunds(false)}
-          type="mutual"
+          type="mutual_fund"
           title="Explore Mutual Funds"
         />
 
