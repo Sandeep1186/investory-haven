@@ -4,7 +4,6 @@ import { Card } from "@/components/ui/card";
 import { LineChart, Wallet, BarChart } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
-import { MarketList } from "@/components/market/MarketList";
 import { PortfolioSection } from "@/components/portfolio/PortfolioSection";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
@@ -13,8 +12,6 @@ export default function Dashboard() {
   const navigate = useNavigate();
   const [user, setUser] = useState<any>(null);
   const [profile, setProfile] = useState<any>(null);
-  const [showMutualFunds, setShowMutualFunds] = useState(false);
-  const [showBonds, setShowBonds] = useState(false);
   const [fundsAmount, setFundsAmount] = useState("");
 
   useEffect(() => {
@@ -93,10 +90,10 @@ export default function Dashboard() {
               <Button variant="ghost" onClick={() => navigate("/stocks")}>
                 Explore Stocks
               </Button>
-              <Button variant="ghost" onClick={() => setShowMutualFunds(true)}>
+              <Button variant="ghost" onClick={() => navigate("/mutual-funds")}>
                 Explore Mutual Funds
               </Button>
-              <Button variant="ghost" onClick={() => setShowBonds(true)}>
+              <Button variant="ghost" onClick={() => navigate("/bonds")}>
                 View Bonds
               </Button>
               <div className="flex items-center gap-2">
@@ -168,20 +165,6 @@ export default function Dashboard() {
             </div>
           </Card>
         </div>
-
-        <MarketList
-          isOpen={showMutualFunds}
-          onClose={() => setShowMutualFunds(false)}
-          type="mutual_fund"
-          title="Explore Mutual Funds"
-        />
-
-        <MarketList
-          isOpen={showBonds}
-          onClose={() => setShowBonds(false)}
-          type="bond"
-          title="View Bonds"
-        />
       </main>
     </div>
   );

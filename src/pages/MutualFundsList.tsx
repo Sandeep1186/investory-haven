@@ -21,7 +21,7 @@ export default function MutualFundsList() {
         const { data, error } = await supabase
           .from("market_data")
           .select("*")
-          .eq("type", "mutual")
+          .eq("type", "mutual_fund")
           .order("name");
 
         if (error) throw error;
@@ -105,7 +105,7 @@ export default function MutualFundsList() {
           setShowAddForm(false);
           setSelectedSymbol(null);
         }}
-        type="mutual"
+        type="mutual_fund"
         title="Buy Mutual Fund"
         symbol={selectedSymbol}
       />
