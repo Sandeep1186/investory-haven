@@ -12,10 +12,24 @@ export function PortfolioSection() {
   const [selectedSymbol, setSelectedSymbol] = useState<string | null>(null);
   const [showSellDialog, setShowSellDialog] = useState(false);
   const [selectedInvestment, setSelectedInvestment] = useState<any>(null);
+  const [userBalance, setUserBalance] = useState<number>(0);
 
   useEffect(() => {
     const fetchData = async () => {
       try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) throw new Error("Not authenticated");
+
+        // Fetch user's balance
+        const { data: profile, error: profileError } = await supabase
+          .from("profiles")
+          .select("balance")
+          .eq("id", user.id)
+          .single();
+
+        if (profileError) throw profileError;
+        setUserBalance(profile?.balance || 0);
+
         const { data: investmentsData, error: investmentsError } = await supabase
           .from("investments")
           .select("*")
@@ -99,6 +113,9 @@ export function PortfolioSection() {
 
       if (updateError) throw updateError;
 
+      // Update local state immediately
+      setUserBalance(newBalance);
+      
       toast.success("Investment sold successfully");
       
       // Refresh investments list
