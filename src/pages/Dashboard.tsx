@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { LineChart, BarChart } from "lucide-react";
@@ -7,36 +7,39 @@ import { useNavigate } from "react-router-dom";
 import { PortfolioSection } from "@/components/portfolio/PortfolioSection";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
+import { useQuery } from "@tanstack/react-query";
 
 export default function Dashboard() {
   const navigate = useNavigate();
-  const [user, setUser] = useState<any>(null);
-  const [profile, setProfile] = useState<any>(null);
-  const [fundsAmount, setFundsAmount] = useState("");
 
-  useEffect(() => {
-    const getUser = async () => {
+  const { data: userData } = useQuery({
+    queryKey: ['user'],
+    queryFn: async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
         navigate("/signin");
-        return;
+        return null;
       }
-      setUser(user);
-      
-      const { data: profile } = await supabase
+      return user;
+    }
+  });
+
+  const { data: profile, refetch: refetchProfile } = useQuery({
+    queryKey: ['profile'],
+    enabled: !!userData,
+    queryFn: async () => {
+      const { data } = await supabase
         .from("profiles")
         .select("*")
-        .eq("id", user.id)
+        .eq("id", userData!.id)
         .single();
       
-      setProfile(profile);
-    };
-    
-    getUser();
-  }, [navigate]);
+      return data;
+    }
+  });
 
-  const handleAddFunds = async () => {
-    if (!fundsAmount || isNaN(Number(fundsAmount)) || Number(fundsAmount) <= 0) {
+  const handleAddFunds = async (amount: string) => {
+    if (!amount || isNaN(Number(amount)) || Number(amount) <= 0) {
       toast.error("Please enter a valid amount");
       return;
     }
@@ -45,15 +48,7 @@ export default function Dashboard() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Not authenticated");
 
-      const { data: currentProfile, error: fetchError } = await supabase
-        .from("profiles")
-        .select("balance")
-        .eq("id", user.id)
-        .single();
-
-      if (fetchError) throw fetchError;
-
-      const newBalance = (currentProfile?.balance || 0) + Number(fundsAmount);
+      const newBalance = (profile?.balance || 0) + Number(amount);
 
       const { error: updateError } = await supabase
         .from("profiles")
@@ -62,9 +57,8 @@ export default function Dashboard() {
 
       if (updateError) throw updateError;
 
-      setProfile({ ...profile, balance: newBalance });
-      setFundsAmount("");
-      toast.success(`Successfully added ₹${fundsAmount}`);
+      refetchProfile();
+      toast.success(`Successfully added ₹${amount}`);
     } catch (error: any) {
       toast.error("Failed to add funds: " + error.message);
     }
@@ -98,8 +92,8 @@ export default function Dashboard() {
               </Button>
               <div className="flex items-center gap-2">
                 <div className="text-right">
-                  <div className="text-sm font-medium">Hello, {profile?.full_name || user?.email}</div>
-                  <div className="text-xs text-gray-500">{user?.email}</div>
+                  <div className="text-sm font-medium">Hello, {profile?.full_name || userData?.email}</div>
+                  <div className="text-xs text-gray-500">{userData?.email}</div>
                 </div>
                 <Button variant="ghost" onClick={handleLogout}>Logout</Button>
               </div>
@@ -109,20 +103,7 @@ export default function Dashboard() {
       </nav>
 
       <main className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
-        <div className="grid grid-cols-3 gap-6 mb-8">
-          <Card className="p-6 bg-blue-50">
-            <div className="flex justify-between items-start">
-              <div>
-                <p className="text-sm font-medium text-gray-500">Total Portfolio Value</p>
-                <h3 className="text-2xl font-bold mt-1">₹0</h3>
-                <p className="text-sm text-green-500 flex items-center mt-1">
-                  +2.5%
-                </p>
-              </div>
-              <BarChart className="h-8 w-8 text-blue-500" />
-            </div>
-          </Card>
-
+        <div className="grid grid-cols-2 gap-6 mb-8">
           <Card className="p-6 bg-blue-50">
             <div className="flex justify-between items-start">
               <div>
@@ -146,11 +127,12 @@ export default function Dashboard() {
               <Input
                 type="number"
                 placeholder="Enter amount"
-                value={fundsAmount}
-                onChange={(e) => setFundsAmount(e.target.value)}
+                onChange={(e) => handleAddFunds(e.target.value)}
                 className="flex-1"
               />
-              <Button onClick={handleAddFunds}>Add Funds</Button>
+              <Button onClick={() => handleAddFunds((document.querySelector('input[type="number"]') as HTMLInputElement)?.value || '0')}>
+                Add Funds
+              </Button>
             </div>
           </Card>
         </div>

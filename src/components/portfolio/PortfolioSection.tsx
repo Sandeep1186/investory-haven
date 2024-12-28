@@ -1,67 +1,68 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { MarketItemDetails } from "../market/MarketItemDetails";
 import { SellDialog } from "./SellDialog";
 import { BalanceDisplay } from "./BalanceDisplay";
 import { InvestmentList } from "./InvestmentList";
+import { useQuery } from "@tanstack/react-query";
 
 export function PortfolioSection() {
-  const [investments, setInvestments] = useState<any[]>([]);
-  const [marketData, setMarketData] = useState<{[key: string]: any}>({});
-  const [loading, setLoading] = useState(true);
   const [selectedSymbol, setSelectedSymbol] = useState<string | null>(null);
   const [showSellDialog, setShowSellDialog] = useState(false);
   const [selectedInvestment, setSelectedInvestment] = useState<any>(null);
-  const [userBalance, setUserBalance] = useState<number>(0);
 
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) throw new Error("Not authenticated");
+  // Fetch user profile data (including balance)
+  const { data: profile } = useQuery({
+    queryKey: ['profile'],
+    queryFn: async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Not authenticated");
 
-        // Fetch user's balance
-        const { data: profile, error: profileError } = await supabase
-          .from("profiles")
-          .select("balance")
-          .eq("id", user.id)
-          .single();
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("balance")
+        .eq("id", user.id)
+        .single();
 
-        if (profileError) throw profileError;
-        setUserBalance(profile?.balance || 0);
+      if (error) throw error;
+      return data;
+    }
+  });
 
-        const { data: investmentsData, error: investmentsError } = await supabase
-          .from("investments")
-          .select("*")
-          .eq('sold', false)
-          .order('created_at', { ascending: false });
+  // Fetch investments data
+  const { data: investments = [], refetch: refetchInvestments } = useQuery({
+    queryKey: ['investments'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("investments")
+        .select("*")
+        .eq('sold', false)
+        .order('created_at', { ascending: false });
 
-        if (investmentsError) throw investmentsError;
+      if (error) throw error;
+      return data || [];
+    }
+  });
 
-        const { data: marketDataArray, error: marketError } = await supabase
-          .from("market_data")
-          .select("symbol, name, price, change");
+  // Fetch market data
+  const { data: marketDataArray = [] } = useQuery({
+    queryKey: ['marketData'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("market_data")
+        .select("symbol, name, price, change");
 
-        if (marketError) throw marketError;
+      if (error) throw error;
+      return data || [];
+    }
+  });
 
-        const marketDataMap = marketDataArray.reduce((acc: any, item: any) => {
-          acc[item.symbol] = item;
-          return acc;
-        }, {});
-
-        setMarketData(marketDataMap);
-        setInvestments(investmentsData || []);
-      } catch (error: any) {
-        console.error('Error fetching data:', error);
-        toast.error("Failed to load portfolio");
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchData();
-  }, []);
+  // Convert market data array to map for easier lookup
+  const marketData = marketDataArray.reduce((acc: any, item: any) => {
+    acc[item.symbol] = item;
+    return acc;
+  }, {});
 
   const calculateCurrentValue = (investment: any) => {
     const currentPrice = marketData[investment.symbol]?.price || investment.purchase_price;
@@ -81,17 +82,8 @@ export function PortfolioSection() {
       const currentPrice = marketData[selectedInvestment.symbol]?.price || selectedInvestment.purchase_price;
       const saleAmount = currentPrice * selectedInvestment.quantity;
 
-      // Get user's current balance
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Not authenticated");
-
-      const { data: profile, error: profileError } = await supabase
-        .from("profiles")
-        .select("balance")
-        .eq("id", user.id)
-        .single();
-
-      if (profileError) throw profileError;
 
       // Update investment as sold
       const { error: investmentError } = await supabase
@@ -114,19 +106,11 @@ export function PortfolioSection() {
 
       if (updateError) throw updateError;
 
-      // Update local state immediately
-      setUserBalance(newBalance);
-      
       toast.success("Investment sold successfully");
       
-      // Refresh investments list
-      const { data: updatedInvestments } = await supabase
-        .from("investments")
-        .select("*")
-        .eq('sold', false)
-        .order('created_at', { ascending: false });
-
-      setInvestments(updatedInvestments || []);
+      // Refetch investments and profile data
+      refetchInvestments();
+      
       setShowSellDialog(false);
       setSelectedInvestment(null);
     } catch (error: any) {
@@ -135,13 +119,9 @@ export function PortfolioSection() {
     }
   };
 
-  if (loading) {
-    return <div>Loading portfolio...</div>;
-  }
-
   return (
     <div className="space-y-6">
-      <BalanceDisplay balance={userBalance} />
+      <BalanceDisplay balance={profile?.balance || 0} />
       
       <InvestmentList
         investments={investments}
