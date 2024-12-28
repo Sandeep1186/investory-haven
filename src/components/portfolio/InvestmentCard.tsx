@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 
 interface InvestmentCardProps {
   title: string;
-  type: 'stock' | 'mutual' | 'bond';
+  type: 'stock' | 'mutual_fund' | 'bond';  // Updated type definition
   investments: any[];
   marketData: { [key: string]: any };
   onSymbolClick: (symbol: string) => void;
