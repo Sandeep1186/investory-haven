@@ -140,7 +140,7 @@ export function PortfolioSection() {
 
         <InvestmentCard
           title="Mutual Funds"
-          type="mutual"
+          type="mutual_fund"
           investments={investments}
           marketData={marketData}
           onSymbolClick={setSelectedSymbol}

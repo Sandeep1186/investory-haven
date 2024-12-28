@@ -38,7 +38,7 @@ export function AddInvestmentForm({ isOpen, onClose, type, title, symbol: initia
         .from("market_data")
         .select("*")
         .eq("symbol", symbol.toUpperCase())
-        .eq("type", type)
+        .eq("type", type === "mutual" ? "mutual_fund" : type)
         .single();
 
       if (marketError || !marketData) {
@@ -82,7 +82,7 @@ export function AddInvestmentForm({ isOpen, onClose, type, title, symbol: initia
         .from("investments")
         .insert({
           symbol: symbol.toUpperCase(),
-          type,
+          type: type === "mutual" ? "mutual_fund" : type,
           quantity: Number(quantity),
           purchase_price: marketData.price,
           user_id: user.id
