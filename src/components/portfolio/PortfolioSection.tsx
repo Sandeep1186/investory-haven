@@ -2,8 +2,9 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { MarketItemDetails } from "../market/MarketItemDetails";
-import { InvestmentCard } from "./InvestmentCard";
 import { SellDialog } from "./SellDialog";
+import { BalanceDisplay } from "./BalanceDisplay";
+import { InvestmentList } from "./InvestmentList";
 
 export function PortfolioSection() {
   const [investments, setInvestments] = useState<any[]>([]);
@@ -140,49 +141,19 @@ export function PortfolioSection() {
 
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <InvestmentCard
-          title="Stocks"
-          type="stock"
-          investments={investments}
-          marketData={marketData}
-          onSymbolClick={setSelectedSymbol}
-          onSellClick={(investment) => {
-            setSelectedInvestment(investment);
-            setShowSellDialog(true);
-          }}
-          calculateCurrentValue={calculateCurrentValue}
-          calculateProfitLoss={calculateProfitLoss}
-        />
-
-        <InvestmentCard
-          title="Mutual Funds"
-          type="mutual_fund"
-          investments={investments}
-          marketData={marketData}
-          onSymbolClick={setSelectedSymbol}
-          onSellClick={(investment) => {
-            setSelectedInvestment(investment);
-            setShowSellDialog(true);
-          }}
-          calculateCurrentValue={calculateCurrentValue}
-          calculateProfitLoss={calculateProfitLoss}
-        />
-
-        <InvestmentCard
-          title="Bonds"
-          type="bond"
-          investments={investments}
-          marketData={marketData}
-          onSymbolClick={setSelectedSymbol}
-          onSellClick={(investment) => {
-            setSelectedInvestment(investment);
-            setShowSellDialog(true);
-          }}
-          calculateCurrentValue={calculateCurrentValue}
-          calculateProfitLoss={calculateProfitLoss}
-        />
-      </div>
+      <BalanceDisplay balance={userBalance} />
+      
+      <InvestmentList
+        investments={investments}
+        marketData={marketData}
+        onSymbolClick={setSelectedSymbol}
+        onSellClick={(investment) => {
+          setSelectedInvestment(investment);
+          setShowSellDialog(true);
+        }}
+        calculateCurrentValue={calculateCurrentValue}
+        calculateProfitLoss={calculateProfitLoss}
+      />
 
       <MarketItemDetails
         isOpen={!!selectedSymbol}
