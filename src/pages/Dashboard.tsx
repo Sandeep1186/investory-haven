@@ -38,6 +38,49 @@ export default function Dashboard() {
     }
   });
 
+  // Fetch investments data
+  const { data: investments = [] } = useQuery({
+    queryKey: ['investments'],
+    enabled: !!userData,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("investments")
+        .select("*")
+        .eq('sold', false)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      return data || [];
+    }
+  });
+
+  // Fetch market data for calculating current values
+  const { data: marketDataArray = [] } = useQuery({
+    queryKey: ['marketData'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("market_data")
+        .select("symbol, price");
+
+      if (error) throw error;
+      return data || [];
+    }
+  });
+
+  // Calculate total investments value
+  const calculateTotalInvestments = () => {
+    const marketDataMap = marketDataArray.reduce((acc: any, item: any) => {
+      acc[item.symbol] = item;
+      return acc;
+    }, {});
+
+    return investments.reduce((total, investment) => {
+      const currentPrice = marketDataMap[investment.symbol]?.price || investment.purchase_price;
+      const investmentValue = investment.quantity * currentPrice;
+      return total + investmentValue;
+    }, 0);
+  };
+
   const handleAddFunds = async (amount: string) => {
     if (!amount || isNaN(Number(amount)) || Number(amount) <= 0) {
       toast.error("Please enter a valid amount");
@@ -108,8 +151,8 @@ export default function Dashboard() {
             <div className="flex justify-between items-start">
               <div>
                 <p className="text-sm font-medium text-gray-500">Total Investments</p>
-                <h3 className="text-2xl font-bold mt-1">0</h3>
-                <p className="text-sm text-gray-500 mt-1">Active Positions</p>
+                <h3 className="text-2xl font-bold mt-1">₹{calculateTotalInvestments().toLocaleString()}</h3>
+                <p className="text-sm text-gray-500 mt-1">Active Positions: {investments.length}</p>
               </div>
               <LineChart className="h-8 w-8 text-blue-500" />
             </div>
