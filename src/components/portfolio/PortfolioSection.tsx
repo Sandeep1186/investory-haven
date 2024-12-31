@@ -5,14 +5,14 @@ import { MarketItemDetails } from "../market/MarketItemDetails";
 import { SellDialog } from "./SellDialog";
 import { BalanceDisplay } from "./BalanceDisplay";
 import { InvestmentList } from "./InvestmentList";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 export function PortfolioSection() {
   const [selectedSymbol, setSelectedSymbol] = useState<string | null>(null);
   const [showSellDialog, setShowSellDialog] = useState(false);
   const [selectedInvestment, setSelectedInvestment] = useState<any>(null);
+  const queryClient = useQueryClient();
 
-  // Fetch user profile data (including balance)
   const { data: profile } = useQuery({
     queryKey: ['profile'],
     queryFn: async () => {
@@ -106,10 +106,11 @@ export function PortfolioSection() {
 
       if (updateError) throw updateError;
 
+      // Invalidate queries to trigger a refresh
+      queryClient.invalidateQueries({ queryKey: ['investments'] });
+      queryClient.invalidateQueries({ queryKey: ['profile'] });
+
       toast.success("Investment sold successfully");
-      
-      // Refetch investments and profile data
-      refetchInvestments();
       
       setShowSellDialog(false);
       setSelectedInvestment(null);
