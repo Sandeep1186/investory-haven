@@ -81,7 +81,10 @@ export default function Dashboard() {
     }, 0);
   };
 
-  const handleAddFunds = async (amount: string) => {
+  const handleAddFunds = async () => {
+    const amountInput = document.querySelector('input[type="number"]') as HTMLInputElement;
+    const amount = amountInput?.value;
+
     if (!amount || isNaN(Number(amount)) || Number(amount) <= 0) {
       toast.error("Please enter a valid amount");
       return;
@@ -101,6 +104,7 @@ export default function Dashboard() {
       if (updateError) throw updateError;
 
       refetchProfile();
+      amountInput.value = ''; // Clear the input after successful addition
       toast.success(`Successfully added ₹${amount}`);
     } catch (error: any) {
       toast.error("Failed to add funds: " + error.message);
@@ -170,10 +174,9 @@ export default function Dashboard() {
               <Input
                 type="number"
                 placeholder="Enter amount"
-                onChange={(e) => handleAddFunds(e.target.value)}
                 className="flex-1"
               />
-              <Button onClick={() => handleAddFunds((document.querySelector('input[type="number"]') as HTMLInputElement)?.value || '0')}>
+              <Button onClick={handleAddFunds}>
                 Add Funds
               </Button>
             </div>
