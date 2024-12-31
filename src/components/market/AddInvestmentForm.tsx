@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { useQueryClient } from "@tanstack/react-query";
 
 interface AddInvestmentFormProps {
   isOpen: boolean;
@@ -23,6 +24,7 @@ export function AddInvestmentForm({ isOpen, onClose, type, title, symbol: initia
   const [symbol, setSymbol] = useState(initialSymbol || "");
   const [quantity, setQuantity] = useState("");
   const [loading, setLoading] = useState(false);
+  const queryClient = useQueryClient();
 
   useEffect(() => {
     setSymbol(initialSymbol || "");
@@ -104,6 +106,10 @@ export function AddInvestmentForm({ isOpen, onClose, type, title, symbol: initia
         console.error("Update balance error:", updateError);
         throw updateError;
       }
+
+      // Invalidate relevant queries to trigger a refresh
+      queryClient.invalidateQueries({ queryKey: ['investments'] });
+      queryClient.invalidateQueries({ queryKey: ['profile'] });
 
       toast.success("Investment added successfully");
       onClose();
