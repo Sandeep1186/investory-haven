@@ -107,9 +107,10 @@ export function AddInvestmentForm({ isOpen, onClose, type, title, symbol: initia
         throw updateError;
       }
 
-      // Invalidate relevant queries to trigger a refresh
+      // Invalidate all relevant queries to trigger a refresh
       queryClient.invalidateQueries({ queryKey: ['investments'] });
       queryClient.invalidateQueries({ queryKey: ['profile'] });
+      queryClient.invalidateQueries({ queryKey: ['marketData'] });
 
       toast.success("Investment added successfully");
       onClose();

@@ -31,7 +31,7 @@ export function PortfolioSection() {
   });
 
   // Fetch investments data
-  const { data: investments = [], refetch: refetchInvestments } = useQuery({
+  const { data: investments = [] } = useQuery({
     queryKey: ['investments'],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -106,9 +106,10 @@ export function PortfolioSection() {
 
       if (updateError) throw updateError;
 
-      // Invalidate queries to trigger a refresh
+      // Invalidate all relevant queries to trigger a refresh
       queryClient.invalidateQueries({ queryKey: ['investments'] });
       queryClient.invalidateQueries({ queryKey: ['profile'] });
+      queryClient.invalidateQueries({ queryKey: ['marketData'] });
 
       toast.success("Investment sold successfully");
       
