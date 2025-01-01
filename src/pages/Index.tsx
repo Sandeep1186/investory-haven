@@ -1,78 +1,86 @@
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { BarChart3, Shield, LineChart } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
+import { useEffect } from "react";
 
 export default function Index() {
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    const checkSession = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        navigate("/dashboard");
+      }
+    };
+    checkSession();
+  }, [navigate]);
+
   return (
-    <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white">
-      <nav className="bg-white shadow">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between h-16">
-            <div className="flex items-center">
-              <span className="text-2xl font-bold text-primary">InvestWise</span>
+    <div className="min-h-screen bg-white">
+      <header className="relative">
+        <div className="bg-white">
+          <nav className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8" aria-label="Top">
+            <div className="w-full py-6 flex items-center justify-between">
+              <div className="flex items-center">
+                <span className="text-2xl font-bold text-primary">InvestWise</span>
+              </div>
+              <div className="ml-10 space-x-4">
+                <Link to="/signin">
+                  <Button variant="outline">Sign in</Button>
+                </Link>
+              </div>
             </div>
-            <div className="flex items-center space-x-4">
-              <Link to="/signin">
-                <Button variant="ghost">Sign in</Button>
-              </Link>
-              <Link to="/signup">
-                <Button>Get Started</Button>
-              </Link>
-            </div>
-          </div>
+          </nav>
         </div>
-      </nav>
+      </header>
 
       <main>
-        <div className="max-w-7xl mx-auto py-16 px-4 sm:py-24 sm:px-6 lg:px-8">
-          <div className="text-center">
-            <h1 className="text-4xl font-extrabold text-gray-900 sm:text-5xl md:text-6xl">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center py-12 sm:py-20">
+            <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-extrabold text-gray-900 px-4">
               Unlock the power of
-              <span className="text-primary block">trading</span>
+              <span className="text-primary block mt-2">trading</span>
             </h1>
-            <p className="mt-3 max-w-md mx-auto text-base text-gray-500 sm:text-lg md:mt-5 md:text-xl md:max-w-3xl">
+            <p className="mt-4 sm:mt-6 text-sm sm:text-base md:text-lg lg:text-xl text-gray-500 max-w-3xl mx-auto px-4">
               Unlock the power of trading with our user-friendly interface. Smart investments, personalized guidance, and powerful tools at your fingertips.
             </p>
-            <div className="mt-5 max-w-md mx-auto sm:flex sm:justify-center md:mt-8">
-              <Link to="/signup">
-                <Button size="lg" className="w-full sm:w-auto">
-                  Open Account
+            <div className="mt-6 sm:mt-8 flex flex-col sm:flex-row gap-4 justify-center px-4">
+              <Link to="/signup" className="w-full sm:w-auto">
+                <Button className="w-full sm:w-auto" size="lg">
+                  Get started
+                </Button>
+              </Link>
+              <Link to="/signin" className="w-full sm:w-auto">
+                <Button variant="outline" className="w-full sm:w-auto" size="lg">
+                  Sign in
                 </Button>
               </Link>
             </div>
           </div>
 
-          <div className="mt-32 grid gap-8 md:grid-cols-3">
-            <Card>
-              <CardContent className="p-6 text-center">
-                <div className="mx-auto w-12 h-12 flex items-center justify-center rounded-full bg-primary/10 mb-4">
-                  <BarChart3 className="w-6 h-6 text-primary" />
-                </div>
-                <h3 className="text-lg font-semibold mb-2">Advanced Analytics</h3>
-                <p className="text-gray-600">Real-time market data and powerful analysis tools</p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardContent className="p-6 text-center">
-                <div className="mx-auto w-12 h-12 flex items-center justify-center rounded-full bg-primary/10 mb-4">
-                  <Shield className="w-6 h-6 text-primary" />
-                </div>
-                <h3 className="text-lg font-semibold mb-2">Secure Platform</h3>
-                <p className="text-gray-600">Bank-level security to protect your investments</p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardContent className="p-6 text-center">
-                <div className="mx-auto w-12 h-12 flex items-center justify-center rounded-full bg-primary/10 mb-4">
-                  <LineChart className="w-6 h-6 text-primary" />
-                </div>
-                <h3 className="text-lg font-semibold mb-2">Smart Portfolio</h3>
-                <p className="text-gray-600">Automated portfolio management and rebalancing</p>
-              </CardContent>
-            </Card>
+          <div className="py-12 sm:py-20">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8 px-4">
+              <div className="text-center p-6 rounded-lg bg-gray-50">
+                <h3 className="text-lg sm:text-xl font-semibold text-gray-900">Stocks</h3>
+                <p className="mt-2 text-sm sm:text-base text-gray-500">
+                  Invest in a wide range of stocks from top companies
+                </p>
+              </div>
+              <div className="text-center p-6 rounded-lg bg-gray-50">
+                <h3 className="text-lg sm:text-xl font-semibold text-gray-900">Mutual Funds</h3>
+                <p className="mt-2 text-sm sm:text-base text-gray-500">
+                  Diversify your portfolio with expertly managed funds
+                </p>
+              </div>
+              <div className="text-center p-6 rounded-lg bg-gray-50">
+                <h3 className="text-lg sm:text-xl font-semibold text-gray-900">Bonds</h3>
+                <p className="mt-2 text-sm sm:text-base text-gray-500">
+                  Secure your investments with government and corporate bonds
+                </p>
+              </div>
+            </div>
           </div>
         </div>
       </main>
