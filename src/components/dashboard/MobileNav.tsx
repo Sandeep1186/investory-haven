@@ -26,7 +26,7 @@ export function MobileNav({ profile, userEmail, onLogout }: MobileNavProps) {
             <Menu className="h-6 w-6" />
           </Button>
         </DrawerTrigger>
-        <DrawerContent className="w-[50%] ml-auto">
+        <DrawerContent className="w-[50%] ml-auto h-full">
           <DrawerHeader>
             <DrawerTitle>Menu</DrawerTitle>
           </DrawerHeader>
