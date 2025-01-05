@@ -44,7 +44,11 @@ export default function AddFunds() {
 
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("Not authenticated");
+      if (!user) {
+        toast.error("Please sign in to continue");
+        navigate("/signin");
+        return;
+      }
 
       // Create a payment record
       const { data: payment, error: paymentError } = await supabase
@@ -57,40 +61,62 @@ export default function AddFunds() {
         .select()
         .single();
 
-      if (paymentError) throw paymentError;
+      if (paymentError) {
+        console.error("Payment record creation error:", paymentError);
+        toast.error("Failed to initiate payment");
+        return;
+      }
+
+      if (!payment) {
+        toast.error("Failed to create payment record");
+        return;
+      }
 
       // Initialize Razorpay payment
-      const options = {
-        key: "rzp_test_YUWYBzX4ETy2sF", // Test key
-        amount: Number(amount) * 100, // Amount in paise
+      const razorpayOptions = {
+        key: "rzp_test_YUWYBzX4ETy2sF",
+        amount: Number(amount) * 100,
         currency: "INR",
         name: "InvestWise",
         description: "Add funds to your wallet",
         order_id: payment.id,
         handler: async function (response: any) {
-          // Update payment status and user balance
-          const { error: updateError } = await supabase
-            .from("payments")
-            .update({
-              status: "completed",
-              razorpay_payment_id: response.razorpay_payment_id,
-              razorpay_order_id: response.razorpay_order_id
-            })
-            .eq("id", payment.id);
+          try {
+            // Update payment status
+            const { error: updateError } = await supabase
+              .from("payments")
+              .update({
+                status: "completed",
+                razorpay_payment_id: response.razorpay_payment_id,
+                razorpay_order_id: response.razorpay_order_id
+              })
+              .eq("id", payment.id);
 
-          if (updateError) throw updateError;
+            if (updateError) {
+              console.error("Payment status update error:", updateError);
+              toast.error("Failed to update payment status");
+              return;
+            }
 
-          // Update user balance
-          const { error: balanceError } = await supabase
-            .rpc("increment_balance", { increment_amount: Number(amount) });
+            // Update user balance
+            const { error: balanceError } = await supabase
+              .rpc("increment_balance", { increment_amount: Number(amount) });
 
-          if (balanceError) throw balanceError;
+            if (balanceError) {
+              console.error("Balance update error:", balanceError);
+              toast.error("Failed to update balance");
+              return;
+            }
 
-          // Invalidate queries to refresh data
-          queryClient.invalidateQueries({ queryKey: ["profile"] });
-          
-          toast.success("Payment successful!");
-          navigate("/dashboard");
+            // Invalidate queries to refresh data
+            queryClient.invalidateQueries({ queryKey: ["profile"] });
+            
+            toast.success("Payment successful!");
+            navigate("/dashboard");
+          } catch (error) {
+            console.error("Payment completion error:", error);
+            toast.error("Failed to complete payment");
+          }
         },
         prefill: {
           email: user.email
@@ -100,7 +126,7 @@ export default function AddFunds() {
         }
       };
 
-      const razorpay = new window.Razorpay(options);
+      const razorpay = new window.Razorpay(razorpayOptions);
       razorpay.open();
     } catch (error: any) {
       console.error("Payment error:", error);
