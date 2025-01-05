@@ -118,6 +118,11 @@ export default function AddFunds() {
             toast.error("Failed to complete payment");
           }
         },
+        modal: {
+          ondismiss: function() {
+            setIsLoading(false);
+          }
+        },
         prefill: {
           email: user.email
         },
@@ -126,8 +131,13 @@ export default function AddFunds() {
         }
       };
 
-      const razorpay = new window.Razorpay(razorpayOptions);
-      razorpay.open();
+      try {
+        const razorpay = new window.Razorpay(razorpayOptions);
+        razorpay.open();
+      } catch (razorpayError) {
+        console.error("Razorpay initialization error:", razorpayError);
+        toast.error("Failed to initialize payment. Please try again.");
+      }
     } catch (error: any) {
       console.error("Payment error:", error);
       toast.error(error.message || "Failed to process payment");
