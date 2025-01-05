@@ -132,6 +132,5 @@ export default function AddFunds() {
         </div>
       </Card>
     </div>
-  </div>
   );
 }
