@@ -1,11 +1,11 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Card } from "@/components/ui/card";
+import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { supabase } from "@/integrations/supabase/client";
+import { Card } from "@/components/ui/card";
 import { toast } from "sonner";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 
 declare global {
   interface Window {
@@ -17,7 +17,18 @@ export default function AddFunds() {
   const [amount, setAmount] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
-  const queryClient = useQueryClient();
+
+  const { data: user } = useQuery({
+    queryKey: ['user'],
+    queryFn: async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        navigate("/signin");
+        return null;
+      }
+      return user;
+    }
+  });
 
   useEffect(() => {
     const loadRazorpay = async () => {
@@ -29,91 +40,79 @@ export default function AddFunds() {
     loadRazorpay();
   }, []);
 
-  const handlePayment = async () => {
+  const handleAddFunds = async () => {
     if (!amount || isNaN(Number(amount)) || Number(amount) <= 0) {
       toast.error("Please enter a valid amount");
       return;
     }
 
-    if (typeof window.Razorpay === 'undefined') {
-      toast.error("Payment system is still loading. Please try again in a moment.");
+    if (!user) {
+      toast.error("Please sign in to continue");
+      navigate("/signin");
       return;
     }
 
     setIsLoading(true);
 
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        toast.error("Please sign in to continue");
-        navigate("/signin");
-        return;
-      }
-
       // Create a payment record
       const { data: payment, error: paymentError } = await supabase
-        .from("payments")
-        .insert({
-          amount: Number(amount),
-          user_id: user.id,
-          status: "pending"
-        })
+        .from('payments')
+        .insert([
+          {
+            user_id: user.id,
+            amount: Number(amount),
+            status: 'pending'
+          }
+        ])
         .select()
         .single();
 
-      if (paymentError) {
-        console.error("Payment record creation error:", paymentError);
-        toast.error("Failed to initiate payment");
-        return;
+      if (paymentError || !payment) {
+        throw new Error(paymentError?.message || "Failed to create payment record");
       }
 
-      if (!payment) {
-        toast.error("Failed to create payment record");
-        return;
+      // Ensure Razorpay is loaded
+      if (!window.Razorpay) {
+        throw new Error("Payment system is not initialized yet. Please try again.");
       }
 
-      // Initialize Razorpay payment
       const razorpayOptions = {
-        key: "rzp_test_YUWYBzX4ETy2sF",
-        amount: Number(amount) * 100,
-        currency: "INR",
-        name: "InvestWise",
-        description: "Add funds to your wallet",
+        key: 'rzp_test_dZIXuuI6xkXQZR', // Test key
+        amount: Number(amount) * 100, // Razorpay expects amount in paise
+        currency: 'INR',
+        name: 'InvestWise',
+        description: 'Add funds to your account',
         order_id: payment.id,
         handler: async function (response: any) {
           try {
-            // Update payment status
+            // Update payment record with Razorpay details
             const { error: updateError } = await supabase
-              .from("payments")
+              .from('payments')
               .update({
-                status: "completed",
+                status: 'completed',
                 razorpay_payment_id: response.razorpay_payment_id,
                 razorpay_order_id: response.razorpay_order_id
               })
-              .eq("id", payment.id);
+              .eq('id', payment.id);
 
             if (updateError) {
-              console.error("Payment status update error:", updateError);
-              toast.error("Failed to update payment status");
-              return;
+              throw updateError;
             }
 
-            // Update user balance
+            // Update user's balance
             const { error: balanceError } = await supabase
-              .rpc("increment_balance", { increment_amount: Number(amount) });
+              .rpc('increment_balance', {
+                increment_amount: Number(amount)
+              });
 
             if (balanceError) {
-              console.error("Balance update error:", balanceError);
-              toast.error("Failed to update balance");
-              return;
+              throw balanceError;
             }
 
-            // Invalidate queries to refresh data
-            queryClient.invalidateQueries({ queryKey: ["profile"] });
-            
             toast.success("Payment successful!");
             navigate("/dashboard");
-          } catch (error) {
+          } catch (error: any) {
             console.error("Payment completion error:", error);
             toast.error("Failed to complete payment");
           }
@@ -126,8 +125,8 @@ export default function AddFunds() {
         prefill: {
           email: user.email
         },
-        theme: {
-          color: "#10B981"
+        notes: {
+          user_id: user.id
         }
       };
 
@@ -137,42 +136,41 @@ export default function AddFunds() {
       } catch (razorpayError) {
         console.error("Razorpay initialization error:", razorpayError);
         toast.error("Failed to initialize payment. Please try again.");
+        setIsLoading(false);
       }
     } catch (error: any) {
       console.error("Payment error:", error);
       toast.error(error.message || "Failed to process payment");
-    } finally {
       setIsLoading(false);
     }
   };
 
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-      <Card className="w-full max-w-md p-6 space-y-6">
-        <div>
-          <h2 className="text-2xl font-bold text-center mb-2">Add Funds</h2>
-          <p className="text-gray-500 text-center">Enter the amount you want to add to your wallet</p>
-        </div>
-        
+      <Card className="w-full max-w-md p-6">
+        <h1 className="text-2xl font-bold mb-6">Add Funds</h1>
         <div className="space-y-4">
           <div>
+            <label htmlFor="amount" className="block text-sm font-medium text-gray-700 mb-1">
+              Amount (₹)
+            </label>
             <Input
+              id="amount"
               type="number"
-              placeholder="Enter amount"
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
-              className="text-lg"
+              placeholder="Enter amount"
+              min="1"
+              className="w-full"
             />
           </div>
-          
           <Button
-            onClick={handlePayment}
-            disabled={isLoading}
+            onClick={handleAddFunds}
+            disabled={isLoading || !amount}
             className="w-full"
           >
             {isLoading ? "Processing..." : "Proceed to Pay"}
           </Button>
-          
           <Button
             variant="outline"
             onClick={() => navigate("/dashboard")}
