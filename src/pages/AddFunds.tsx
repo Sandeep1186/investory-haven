@@ -32,23 +32,38 @@ export default function AddFunds() {
 
   useEffect(() => {
     const loadRazorpay = async () => {
-      if (typeof window.Razorpay !== 'undefined') {
-        console.log("Razorpay already loaded");
-        return;
-      }
+      try {
+        // Check if Razorpay is already loaded
+        if (typeof window.Razorpay !== 'undefined') {
+          console.log("Razorpay already loaded");
+          return;
+        }
 
-      const script = document.createElement('script');
-      script.src = 'https://checkout.razorpay.com/v1/checkout.js';
-      script.async = true;
-      script.onload = () => {
-        console.log("Razorpay script loaded successfully");
-      };
-      script.onerror = () => {
-        console.error("Failed to load Razorpay script");
-        toast.error("Failed to load payment system. Please refresh the page.");
-      };
-      document.body.appendChild(script);
+        console.log("Loading Razorpay script...");
+        const script = document.createElement('script');
+        script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+        script.async = true;
+        
+        // Create a promise to handle script loading
+        const scriptLoadPromise = new Promise((resolve, reject) => {
+          script.onload = () => {
+            console.log("Razorpay script loaded successfully");
+            resolve(true);
+          };
+          script.onerror = () => {
+            console.error("Failed to load Razorpay script");
+            reject(new Error("Failed to load payment system"));
+          };
+        });
+
+        document.body.appendChild(script);
+        await scriptLoadPromise;
+      } catch (error) {
+        console.error("Error loading Razorpay:", error);
+        toast.error("Failed to load payment system. Please refresh and try again.");
+      }
     };
+
     loadRazorpay();
   }, []);
 
@@ -67,7 +82,7 @@ export default function AddFunds() {
     setIsLoading(true);
 
     try {
-      // Create a payment record
+      console.log("Creating payment record...");
       const { data: payment, error: paymentError } = await supabase
         .from('payments')
         .insert([
@@ -84,22 +99,25 @@ export default function AddFunds() {
         throw new Error(paymentError?.message || "Failed to create payment record");
       }
 
+      console.log("Payment record created:", payment);
+
       // Ensure Razorpay is loaded
       if (typeof window.Razorpay === 'undefined') {
-        toast.error("Payment system is not ready. Please refresh the page and try again.");
-        setIsLoading(false);
-        return;
+        throw new Error("Payment system is not ready. Please refresh and try again.");
       }
 
-      // Initialize Razorpay options
+      // Initialize Razorpay options with minimal required fields
       const options = {
         key: 'rzp_test_dZIXuuI6xkXQZR',
-        amount: Math.round(Number(amount) * 100), // Amount in paise, rounded to avoid decimal issues
+        amount: Math.round(Number(amount) * 100), // Amount in paise
         currency: 'INR',
         name: 'InvestWise',
         description: 'Add funds to your account',
+        order_id: payment.id, // Using payment.id as order_id
         handler: async function (response: any) {
           try {
+            console.log("Payment successful, updating records...");
+            
             // Update payment record with Razorpay details
             const { error: updateError } = await supabase
               .from('payments')
@@ -128,12 +146,7 @@ export default function AddFunds() {
             navigate("/dashboard");
           } catch (error: any) {
             console.error("Payment completion error:", error);
-            toast.error("Failed to complete payment");
-          }
-        },
-        modal: {
-          ondismiss: function() {
-            setIsLoading(false);
+            toast.error("Failed to complete payment. Please contact support.");
           }
         },
         prefill: {
@@ -141,16 +154,26 @@ export default function AddFunds() {
         },
         notes: {
           payment_id: payment.id
+        },
+        theme: {
+          color: "#2563eb"
         }
       };
 
-      // Create and open Razorpay
       console.log("Initializing Razorpay with options:", options);
       const razorpay = new window.Razorpay(options);
+      
+      // Handle payment failure
+      razorpay.on('payment.failed', function (response: any) {
+        console.error("Payment failed:", response.error);
+        toast.error(`Payment failed: ${response.error.description}`);
+      });
+
       razorpay.open();
     } catch (error: any) {
-      console.error("Payment error:", error);
+      console.error("Payment initialization error:", error);
       toast.error(error.message || "Failed to process payment");
+    } finally {
       setIsLoading(false);
     }
   };
