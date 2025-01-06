@@ -72,12 +72,18 @@ export default function AddFunds() {
         throw new Error(paymentError?.message || "Failed to create payment record");
       }
 
-      // Ensure Razorpay is loaded
-      if (typeof window.Razorpay === 'undefined') {
-        throw new Error("Payment system is not initialized yet. Please try again.");
+      // Wait for Razorpay to be loaded
+      let attempts = 0;
+      while (typeof window.Razorpay === 'undefined' && attempts < 10) {
+        await new Promise(resolve => setTimeout(resolve, 500));
+        attempts++;
       }
 
-      const razorpayOptions = {
+      if (typeof window.Razorpay === 'undefined') {
+        throw new Error("Payment system failed to initialize. Please refresh and try again.");
+      }
+
+      const options = {
         key: 'rzp_test_dZIXuuI6xkXQZR',
         amount: Number(amount) * 100,
         currency: 'INR',
@@ -117,24 +123,20 @@ export default function AddFunds() {
             toast.error("Failed to complete payment");
           }
         },
-        prefill: {
-          email: user.email
-        },
-        notes: {
-          user_id: user.id,
-          payment_id: payment.id
-        },
-        theme: {
-          color: '#10B981'
-        },
         modal: {
           ondismiss: function() {
             setIsLoading(false);
           }
+        },
+        prefill: {
+          email: user.email
+        },
+        notes: {
+          payment_id: payment.id
         }
       };
 
-      const razorpay = new window.Razorpay(razorpayOptions);
+      const razorpay = new window.Razorpay(options);
       razorpay.open();
     } catch (error: any) {
       console.error("Payment error:", error);
