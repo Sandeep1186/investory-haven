@@ -35,6 +35,12 @@ export default function AddFunds() {
       const script = document.createElement('script');
       script.src = 'https://checkout.razorpay.com/v1/checkout.js';
       script.async = true;
+      script.onload = () => {
+        console.log("Razorpay script loaded successfully");
+      };
+      script.onerror = () => {
+        console.error("Failed to load Razorpay script");
+      };
       document.body.appendChild(script);
     };
     loadRazorpay();
@@ -72,24 +78,19 @@ export default function AddFunds() {
         throw new Error(paymentError?.message || "Failed to create payment record");
       }
 
-      // Wait for Razorpay to be loaded
-      let attempts = 0;
-      while (typeof window.Razorpay === 'undefined' && attempts < 10) {
-        await new Promise(resolve => setTimeout(resolve, 500));
-        attempts++;
-      }
-
+      // Check if Razorpay is loaded
       if (typeof window.Razorpay === 'undefined') {
-        throw new Error("Payment system failed to initialize. Please refresh and try again.");
+        toast.error("Payment system is initializing. Please try again in a few seconds.");
+        setIsLoading(false);
+        return;
       }
 
       const options = {
         key: 'rzp_test_dZIXuuI6xkXQZR',
-        amount: Number(amount) * 100,
+        amount: Number(amount) * 100, // Amount in paise
         currency: 'INR',
         name: 'InvestWise',
         description: 'Add funds to your account',
-        order_id: payment.id,
         handler: async function (response: any) {
           try {
             // Update payment record with Razorpay details
@@ -136,6 +137,7 @@ export default function AddFunds() {
         }
       };
 
+      console.log("Initializing Razorpay with options:", options);
       const razorpay = new window.Razorpay(options);
       razorpay.open();
     } catch (error: any) {
