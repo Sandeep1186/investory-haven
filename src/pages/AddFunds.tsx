@@ -73,13 +73,13 @@ export default function AddFunds() {
       }
 
       // Ensure Razorpay is loaded
-      if (!window.Razorpay) {
+      if (typeof window.Razorpay === 'undefined') {
         throw new Error("Payment system is not initialized yet. Please try again.");
       }
 
       const razorpayOptions = {
-        key: 'rzp_test_dZIXuuI6xkXQZR', // Test key
-        amount: Number(amount) * 100, // Razorpay expects amount in paise
+        key: 'rzp_test_dZIXuuI6xkXQZR',
+        amount: Number(amount) * 100,
         currency: 'INR',
         name: 'InvestWise',
         description: 'Add funds to your account',
@@ -117,27 +117,25 @@ export default function AddFunds() {
             toast.error("Failed to complete payment");
           }
         },
-        modal: {
-          ondismiss: function() {
-            setIsLoading(false);
-          }
-        },
         prefill: {
           email: user.email
         },
         notes: {
-          user_id: user.id
+          user_id: user.id,
+          payment_id: payment.id
+        },
+        theme: {
+          color: '#10B981'
+        },
+        modal: {
+          ondismiss: function() {
+            setIsLoading(false);
+          }
         }
       };
 
-      try {
-        const razorpay = new window.Razorpay(razorpayOptions);
-        razorpay.open();
-      } catch (razorpayError) {
-        console.error("Razorpay initialization error:", razorpayError);
-        toast.error("Failed to initialize payment. Please try again.");
-        setIsLoading(false);
-      }
+      const razorpay = new window.Razorpay(razorpayOptions);
+      razorpay.open();
     } catch (error: any) {
       console.error("Payment error:", error);
       toast.error(error.message || "Failed to process payment");
