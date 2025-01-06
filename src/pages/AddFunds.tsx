@@ -32,6 +32,11 @@ export default function AddFunds() {
 
   useEffect(() => {
     const loadRazorpay = async () => {
+      if (typeof window.Razorpay !== 'undefined') {
+        console.log("Razorpay already loaded");
+        return;
+      }
+
       const script = document.createElement('script');
       script.src = 'https://checkout.razorpay.com/v1/checkout.js';
       script.async = true;
@@ -40,6 +45,7 @@ export default function AddFunds() {
       };
       script.onerror = () => {
         console.error("Failed to load Razorpay script");
+        toast.error("Failed to load payment system. Please refresh the page.");
       };
       document.body.appendChild(script);
     };
@@ -78,16 +84,17 @@ export default function AddFunds() {
         throw new Error(paymentError?.message || "Failed to create payment record");
       }
 
-      // Check if Razorpay is loaded
+      // Ensure Razorpay is loaded
       if (typeof window.Razorpay === 'undefined') {
-        toast.error("Payment system is initializing. Please try again in a few seconds.");
+        toast.error("Payment system is not ready. Please refresh the page and try again.");
         setIsLoading(false);
         return;
       }
 
+      // Initialize Razorpay options
       const options = {
         key: 'rzp_test_dZIXuuI6xkXQZR',
-        amount: Number(amount) * 100, // Amount in paise
+        amount: Math.round(Number(amount) * 100), // Amount in paise, rounded to avoid decimal issues
         currency: 'INR',
         name: 'InvestWise',
         description: 'Add funds to your account',
@@ -137,6 +144,7 @@ export default function AddFunds() {
         }
       };
 
+      // Create and open Razorpay
       console.log("Initializing Razorpay with options:", options);
       const razorpay = new window.Razorpay(options);
       razorpay.open();
