@@ -14,12 +14,19 @@ interface EmailRequest {
 }
 
 const handler = async (req: Request): Promise<Response> => {
+  // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
+    if (!RESEND_API_KEY) {
+      console.error("RESEND_API_KEY is not set");
+      throw new Error("Email service configuration error");
+    }
+
     const { to, fullName } = await req.json() as EmailRequest;
+    console.log("Sending welcome email to:", to, "for user:", fullName);
 
     const res = await fetch("https://api.resend.com/emails", {
       method: "POST",
@@ -47,10 +54,13 @@ const handler = async (req: Request): Promise<Response> => {
 
     if (!res.ok) {
       const error = await res.text();
+      console.error("Resend API error:", error);
       throw new Error(error);
     }
 
     const data = await res.json();
+    console.log("Email sent successfully:", data);
+
     return new Response(JSON.stringify(data), {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -58,7 +68,7 @@ const handler = async (req: Request): Promise<Response> => {
   } catch (error) {
     console.error("Error sending welcome email:", error);
     return new Response(
-      JSON.stringify({ error: "Failed to send welcome email" }),
+      JSON.stringify({ error: error.message || "Failed to send welcome email" }),
       {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },

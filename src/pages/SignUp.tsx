@@ -18,25 +18,25 @@ export default function SignUp() {
 
   const sendWelcomeEmail = async (email: string, fullName: string) => {
     try {
-      const response = await fetch(
-        "https://coavbxbywjzgyllitrse.supabase.co/functions/v1/send-welcome-email",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ to: email, fullName }),
-        }
-      );
+      console.log("Attempting to send welcome email to:", email);
+      const response = await supabase.functions.invoke('send-welcome-email', {
+        body: { to: email, fullName }
+      });
 
-      if (!response.ok) {
-        const errorData = await response.text();
-        console.error("Welcome email error response:", errorData);
-        throw new Error("Failed to send welcome email");
+      if (response.error) {
+        console.error("Welcome email error:", response.error);
+        throw new Error(response.error.message || "Failed to send welcome email");
       }
+
+      console.log("Welcome email sent successfully:", response.data);
     } catch (error) {
       console.error("Error sending welcome email:", error);
       // Don't throw here - we don't want to block the signup process if email fails
+      toast({
+        title: "Warning",
+        description: "Account created, but welcome email could not be sent.",
+        variant: "destructive",
+      });
     }
   };
 
