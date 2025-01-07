@@ -1,5 +1,5 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
-import { SmtpClient } from "https://deno.land/x/smtp@v0.7.0/mod.ts";
+import { SMTPClient } from "https://deno.land/x/denomailer@1.6.0/mod.ts";
 
 const SMTP_USERNAME = Deno.env.get("SMTP_USERNAME");
 const SMTP_PASSWORD = Deno.env.get("SMTP_PASSWORD");
@@ -30,13 +30,16 @@ const handler = async (req: Request): Promise<Response> => {
     const { to, fullName } = await req.json() as EmailRequest;
     console.log("Sending welcome email to:", to, "for user:", fullName);
 
-    const client = new SmtpClient();
-
-    await client.connectTLS({
-      hostname: "smtp.gmail.com",
-      port: 465,
-      username: SMTP_USERNAME,
-      password: SMTP_PASSWORD,
+    const client = new SMTPClient({
+      connection: {
+        hostname: "smtp.gmail.com",
+        port: 465,
+        tls: true,
+        auth: {
+          username: SMTP_USERNAME,
+          password: SMTP_PASSWORD,
+        },
+      },
     });
 
     const emailContent = `
@@ -58,8 +61,6 @@ const handler = async (req: Request): Promise<Response> => {
       content: "text/html",
       html: emailContent,
     });
-
-    await client.close();
 
     console.log("Email sent successfully to:", to);
 
