@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
-import { useToast } from "@/components/ui/use-toast";
+import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 
 export default function SignUp() {
@@ -15,6 +15,29 @@ export default function SignUp() {
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
+
+  const sendWelcomeEmail = async (email: string, fullName: string) => {
+    try {
+      const response = await fetch(
+        "https://coavbxbywjzgyllitrse.supabase.co/functions/v1/send-welcome-email",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${process.env.SUPABASE_ANON_KEY}`,
+          },
+          body: JSON.stringify({ to: email, fullName }),
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error("Failed to send welcome email");
+      }
+    } catch (error) {
+      console.error("Error sending welcome email:", error);
+      // Don't throw here - we don't want to block the signup process if email fails
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -58,6 +81,9 @@ export default function SignUp() {
       }
 
       if (data) {
+        // Send welcome email
+        await sendWelcomeEmail(email, fullName);
+        
         toast({
           title: "Success",
           description: "Account created successfully! Please check your email to verify your account.",
