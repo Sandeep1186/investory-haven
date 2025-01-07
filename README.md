@@ -1,6 +1,5 @@
-Welcome to Your Project
-Project Info
-URL: Project Dashboard
+#Welcome to Your Project
+
 
 How to Edit This Code
 There are several ways to edit your application, ensuring flexibility to suit your workflow.
