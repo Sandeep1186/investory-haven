@@ -1,6 +1,8 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+import { SmtpClient } from "https://deno.land/x/smtp@v0.7.0/mod.ts";
 
-const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
+const SMTP_USERNAME = Deno.env.get("SMTP_USERNAME");
+const SMTP_PASSWORD = Deno.env.get("SMTP_PASSWORD");
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -20,54 +22,48 @@ const handler = async (req: Request): Promise<Response> => {
   }
 
   try {
-    if (!RESEND_API_KEY) {
-      console.error("RESEND_API_KEY is not set");
+    if (!SMTP_USERNAME || !SMTP_PASSWORD) {
+      console.error("SMTP credentials are not set");
       throw new Error("Email service configuration error");
     }
 
     const { to, fullName } = await req.json() as EmailRequest;
     console.log("Sending welcome email to:", to, "for user:", fullName);
 
-    const res = await fetch("https://api.resend.com/emails", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${RESEND_API_KEY}`,
-      },
-      body: JSON.stringify({
-        from: "sandeepsolanki1186@gmail.com", // Using your verified email as sender
-        to: [to],
-        subject: "Welcome to InvestWise!",
-        html: `
-          <h1>Welcome to InvestWise, ${fullName}!</h1>
-          <p>Thank you for registering with InvestWise. We're excited to help you start your investment journey!</p>
-          <p>You can now:</p>
-          <ul>
-            <li>Add funds to your account</li>
-            <li>Explore various investment options</li>
-            <li>Track your portfolio performance</li>
-          </ul>
-          <p>If you have any questions, feel free to reach out to our support team.</p>
-        `,
-      }),
+    const client = new SmtpClient();
+
+    await client.connectTLS({
+      hostname: "smtp.gmail.com",
+      port: 465,
+      username: SMTP_USERNAME,
+      password: SMTP_PASSWORD,
     });
 
-    const data = await res.json();
-    
-    if (!res.ok) {
-      console.error("Resend API error:", data);
-      return new Response(
-        JSON.stringify({ error: data.message || "Failed to send welcome email" }),
-        {
-          status: res.status,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        }
-      );
-    }
+    const emailContent = `
+      <h1>Welcome to InvestWise, ${fullName}!</h1>
+      <p>Thank you for registering with InvestWise. We're excited to help you start your investment journey!</p>
+      <p>You can now:</p>
+      <ul>
+        <li>Add funds to your account</li>
+        <li>Explore various investment options</li>
+        <li>Track your portfolio performance</li>
+      </ul>
+      <p>If you have any questions, feel free to reach out to our support team.</p>
+    `;
 
-    console.log("Email sent successfully:", data);
+    await client.send({
+      from: SMTP_USERNAME,
+      to: to,
+      subject: "Welcome to InvestWise!",
+      content: "text/html",
+      html: emailContent,
+    });
 
-    return new Response(JSON.stringify(data), {
+    await client.close();
+
+    console.log("Email sent successfully to:", to);
+
+    return new Response(JSON.stringify({ message: "Email sent successfully" }), {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
