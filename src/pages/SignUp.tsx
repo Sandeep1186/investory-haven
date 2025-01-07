@@ -31,7 +31,6 @@ export default function SignUp() {
       console.log("Welcome email sent successfully:", response.data);
     } catch (error) {
       console.error("Error sending welcome email:", error);
-      // Don't throw here - we don't want to block the signup process if email fails
       toast({
         title: "Warning",
         description: "Account created, but welcome email could not be sent.",
@@ -65,19 +64,25 @@ export default function SignUp() {
       });
 
       if (error) {
-        if (error.message.includes("User already registered")) {
+        console.error("Signup error:", error);
+        
+        // Check for specific error codes
+        if (error.message.includes("User already registered") || 
+            (error as any).code === "user_already_exists") {
           toast({
             title: "Account Exists",
-            description: "An account with this email already exists. Redirecting to sign in...",
+            description: "This email is already registered. Redirecting to sign in...",
           });
           setTimeout(() => navigate("/signin"), 2000);
-        } else {
-          toast({
-            title: "Error",
-            description: error.message,
-            variant: "destructive",
-          });
+          return;
         }
+        
+        // Handle other errors
+        toast({
+          title: "Error",
+          description: error.message,
+          variant: "destructive",
+        });
         return;
       }
 
