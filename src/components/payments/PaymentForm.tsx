@@ -62,7 +62,7 @@ export function PaymentForm({ onSubmit, onCancel, isLoading }: PaymentFormProps)
         </div>
         
         <PayPalScriptProvider options={{ 
-          "client-id": "test", // We'll update this with the actual client ID
+          clientId: process.env.PAYPAL_CLIENT_ID || "test",
           currency: "USD",
           intent: "capture"
         }}>
