@@ -1,15 +1,9 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { PaymentForm } from "@/components/payments/PaymentForm";
-import { 
-  initializeRazorpay, 
-  createPaymentRecord, 
-  updatePaymentStatus, 
-  incrementUserBalance 
-} from "@/utils/razorpay";
 
 export default function AddFunds() {
   const [isLoading, setIsLoading] = useState(false);
@@ -27,18 +21,7 @@ export default function AddFunds() {
     }
   });
 
-  useEffect(() => {
-    initializeRazorpay().catch(error => {
-      toast.error(error.message);
-    });
-  }, []);
-
   const handleAddFunds = async (amount: string) => {
-    if (!amount || isNaN(Number(amount)) || Number(amount) <= 0) {
-      toast.error("Please enter a valid amount");
-      return;
-    }
-
     if (!user) {
       toast.error("Please sign in to continue");
       navigate("/signin");
@@ -48,59 +31,32 @@ export default function AddFunds() {
     setIsLoading(true);
 
     try {
-      // Ensure Razorpay is loaded
-      if (typeof window.Razorpay === 'undefined') {
-        throw new Error("Payment system is not ready. Please refresh and try again.");
-      }
-
-      const payment = await createPaymentRecord(user.id, Number(amount));
-
-      const options = {
-        key: 'rzp_test_dZIXuuI6xkXQZR',
-        amount: Math.round(Number(amount) * 100),
-        currency: 'INR',
-        name: 'InvestWise',
-        description: 'Add funds to your account',
-        order_id: payment.id,
-        handler: async function (response: any) {
-          try {
-            await updatePaymentStatus(
-              payment.id,
-              response.razorpay_payment_id,
-              response.razorpay_order_id
-            );
-            
-            await incrementUserBalance(Number(amount));
-            
-            toast.success("Payment successful!");
-            navigate("/dashboard");
-          } catch (error: any) {
-            console.error("Payment completion error:", error);
-            toast.error("Failed to complete payment. Please contact support.");
+      // Create a payment record
+      const { data: payment, error: paymentError } = await supabase
+        .from('payments')
+        .insert([
+          {
+            user_id: user.id,
+            amount: Number(amount),
+            status: 'completed' // Simulated successful payment
           }
-        },
-        prefill: {
-          email: user.email
-        },
-        notes: {
-          payment_id: payment.id
-        },
-        theme: {
-          color: "#2563eb"
-        }
-      };
+        ])
+        .select()
+        .single();
 
-      console.log("Initializing Razorpay with options:", options);
-      const razorpay = new window.Razorpay(options);
-      
-      razorpay.on('payment.failed', function (response: any) {
-        console.error("Payment failed:", response.error);
-        toast.error("Payment failed. Please try again.");
+      if (paymentError) throw paymentError;
+
+      // Update user balance
+      const { error: balanceError } = await supabase.rpc('increment_balance', {
+        increment_amount: Number(amount)
       });
 
-      razorpay.open();
+      if (balanceError) throw balanceError;
+
+      toast.success("Payment simulation successful!");
+      navigate("/dashboard");
     } catch (error: any) {
-      console.error("Payment initialization error:", error);
+      console.error("Payment simulation error:", error);
       toast.error(error.message || "Failed to process payment");
     } finally {
       setIsLoading(false);
