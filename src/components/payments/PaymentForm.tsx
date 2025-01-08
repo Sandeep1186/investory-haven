@@ -62,7 +62,7 @@ export function PaymentForm({ onSubmit, onCancel, isLoading }: PaymentFormProps)
         </div>
         
         <PayPalScriptProvider options={{ 
-          clientId: process.env.PAYPAL_CLIENT_ID || "test",
+          clientId: import.meta.env.VITE_PAYPAL_CLIENT_ID || "test",
           currency: "USD",
           intent: "capture"
         }}>
