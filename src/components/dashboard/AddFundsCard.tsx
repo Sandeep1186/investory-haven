@@ -3,7 +3,7 @@ import { Card } from "@/components/ui/card";
 import { useNavigate } from "react-router-dom";
 
 interface AddFundsCardProps {
-  onAddFunds: () => void;
+  onAddFunds?: () => void;
 }
 
 export function AddFundsCard({ onAddFunds }: AddFundsCardProps) {

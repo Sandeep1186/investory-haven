@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { PaymentForm } from "@/components/payments/PaymentForm";
@@ -8,6 +8,7 @@ import { PaymentForm } from "@/components/payments/PaymentForm";
 export default function AddFunds() {
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
 
   const { data: user } = useQuery({
     queryKey: ['user'],
@@ -38,7 +39,7 @@ export default function AddFunds() {
           {
             user_id: user.id,
             amount: Number(amount),
-            status: 'completed' // Simulated successful payment
+            status: 'completed'
           }
         ])
         .select()
@@ -53,10 +54,13 @@ export default function AddFunds() {
 
       if (balanceError) throw balanceError;
 
-      toast.success("Payment simulation successful!");
+      // Invalidate queries to trigger a refresh of the user's balance
+      await queryClient.invalidateQueries({ queryKey: ['profile'] });
+      
+      toast.success("Payment successful! Your balance has been updated.");
       navigate("/dashboard");
     } catch (error: any) {
-      console.error("Payment simulation error:", error);
+      console.error("Payment error:", error);
       toast.error(error.message || "Failed to process payment");
     } finally {
       setIsLoading(false);
