@@ -13,6 +13,25 @@ interface PaymentFormProps {
 
 export function PaymentForm({ onSubmit, onCancel, isLoading }: PaymentFormProps) {
   const [amount, setAmount] = useState("");
+  const [paypalError, setPaypalError] = useState<string | null>(null);
+
+  const clientId = import.meta.env.VITE_PAYPAL_CLIENT_ID;
+
+  if (!clientId) {
+    return (
+      <Card className="w-full max-w-md p-6">
+        <h1 className="text-2xl font-bold mb-6">Payment System Unavailable</h1>
+        <p className="text-red-500 mb-4">PayPal configuration is missing. Please try again later.</p>
+        <Button
+          variant="outline"
+          onClick={onCancel}
+          className="w-full"
+        >
+          Go Back
+        </Button>
+      </Card>
+    );
+  }
 
   const createOrder = (data: any, actions: any) => {
     if (!amount || isNaN(Number(amount)) || Number(amount) <= 0) {
@@ -39,7 +58,14 @@ export function PaymentForm({ onSubmit, onCancel, isLoading }: PaymentFormProps)
     } catch (error: any) {
       console.error("PayPal payment error:", error);
       toast.error("Failed to process payment");
+      setPaypalError("Payment processing failed. Please try again.");
     }
+  };
+
+  const onError = (err: any) => {
+    console.error("PayPal Error:", err);
+    setPaypalError("There was an error connecting to PayPal. Please try again.");
+    toast.error("PayPal connection error");
   };
 
   return (
@@ -61,8 +87,12 @@ export function PaymentForm({ onSubmit, onCancel, isLoading }: PaymentFormProps)
           />
         </div>
         
+        {paypalError && (
+          <div className="text-red-500 text-sm">{paypalError}</div>
+        )}
+        
         <PayPalScriptProvider options={{ 
-          clientId: import.meta.env.VITE_PAYPAL_CLIENT_ID || "test",
+          clientId: clientId,
           currency: "USD",
           intent: "capture"
         }}>
@@ -70,6 +100,7 @@ export function PaymentForm({ onSubmit, onCancel, isLoading }: PaymentFormProps)
             style={{ layout: "vertical" }}
             createOrder={createOrder}
             onApprove={onApprove}
+            onError={onError}
             disabled={isLoading || !amount}
           />
         </PayPalScriptProvider>
