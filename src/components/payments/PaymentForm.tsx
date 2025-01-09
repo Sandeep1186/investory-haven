@@ -18,8 +18,11 @@ export function PaymentForm({ onSubmit, onCancel, isLoading }: PaymentFormProps)
   // Access the PayPal Client ID from environment variables
   const clientId = import.meta.env.VITE_PAYPAL_CLIENT_ID;
 
-  // Log the client ID (for debugging)
-  console.log("PayPal Client ID:", clientId);
+  // Debug logging
+  console.log("PayPal Client ID:", {
+    exists: !!clientId,
+    value: clientId || 'not set'
+  });
 
   const createOrder = (data: any, actions: any) => {
     if (!amount || isNaN(Number(amount)) || Number(amount) <= 0) {
