@@ -15,23 +15,11 @@ export function PaymentForm({ onSubmit, onCancel, isLoading }: PaymentFormProps)
   const [amount, setAmount] = useState("");
   const [paypalError, setPaypalError] = useState<string | null>(null);
 
+  // Access the PayPal Client ID from environment variables
   const clientId = import.meta.env.VITE_PAYPAL_CLIENT_ID;
 
-  if (!clientId) {
-    return (
-      <Card className="w-full max-w-md p-6">
-        <h1 className="text-2xl font-bold mb-6">Payment System Unavailable</h1>
-        <p className="text-red-500 mb-4">PayPal configuration is missing. Please try again later.</p>
-        <Button
-          variant="outline"
-          onClick={onCancel}
-          className="w-full"
-        >
-          Go Back
-        </Button>
-      </Card>
-    );
-  }
+  // Log the client ID (for debugging)
+  console.log("PayPal Client ID:", clientId ? "Present" : "Missing");
 
   const createOrder = (data: any, actions: any) => {
     if (!amount || isNaN(Number(amount)) || Number(amount) <= 0) {
@@ -67,6 +55,24 @@ export function PaymentForm({ onSubmit, onCancel, isLoading }: PaymentFormProps)
     setPaypalError("There was an error connecting to PayPal. Please try again.");
     toast.error("PayPal connection error");
   };
+
+  // If client ID is not available, show error message
+  if (!clientId) {
+    console.error("PayPal Client ID is missing");
+    return (
+      <Card className="w-full max-w-md p-6">
+        <h1 className="text-2xl font-bold mb-6">Payment System Unavailable</h1>
+        <p className="text-red-500 mb-4">PayPal configuration is missing. Please try again later.</p>
+        <Button
+          variant="outline"
+          onClick={onCancel}
+          className="w-full"
+        >
+          Go Back
+        </Button>
+      </Card>
+    );
+  }
 
   return (
     <Card className="w-full max-w-md p-6">
