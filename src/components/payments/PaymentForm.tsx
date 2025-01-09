@@ -16,7 +16,7 @@ export function PaymentForm({ onSubmit, onCancel, isLoading }: PaymentFormProps)
   const [paypalError, setPaypalError] = useState<string | null>(null);
 
   // Access the PayPal Client ID from environment variables
-  const clientId = process.env.VITE_PAYPAL_CLIENT_ID || import.meta.env.VITE_PAYPAL_CLIENT_ID;
+  const clientId = import.meta.env.VITE_PAYPAL_CLIENT_ID;
 
   // Log the client ID (for debugging)
   console.log("PayPal Client ID value:", clientId);
