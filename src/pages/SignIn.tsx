@@ -21,12 +21,22 @@ export default function SignIn() {
         password,
       });
 
-      if (error) throw error;
+      if (error) {
+        if (error.message.includes("Invalid login credentials")) {
+          toast.error("Invalid email or password. If you haven't signed up yet, please create an account first.");
+        } else if (error.message.includes("Email not confirmed")) {
+          toast.error("Please verify your email before signing in. Check your inbox for the verification link.");
+        } else {
+          toast.error(error.message);
+        }
+        return;
+      }
 
       toast.success("Successfully signed in!");
       navigate("/dashboard");
     } catch (error: any) {
-      toast.error(error.message);
+      toast.error("An unexpected error occurred. Please try again.");
+      console.error("Sign in error:", error);
     } finally {
       setLoading(false);
     }
@@ -51,6 +61,7 @@ export default function SignIn() {
                 onChange={(e) => setEmail(e.target.value)}
                 className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                 required
+                placeholder="Enter your email"
               />
             </div>
             <div className="space-y-2">
@@ -64,18 +75,24 @@ export default function SignIn() {
                 onChange={(e) => setPassword(e.target.value)}
                 className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                 required
+                placeholder="Enter your password"
               />
             </div>
             <Button type="submit" className="w-full" disabled={loading}>
               {loading ? "Signing in..." : "Sign In"}
             </Button>
+            <div className="text-center text-sm text-gray-600 space-y-2">
+              <p>
+                Don't have an account?{" "}
+                <Link to="/signup" className="text-primary hover:underline">
+                  Sign up
+                </Link>
+              </p>
+              <p className="text-xs text-gray-500">
+                Make sure to verify your email after signing up
+              </p>
+            </div>
           </form>
-          <p className="text-center text-sm text-gray-600 mt-4">
-            Don't have an account?{" "}
-            <Link to="/signup" className="text-primary hover:underline">
-              Sign up
-            </Link>
-          </p>
         </CardContent>
       </Card>
     </div>
