@@ -14,27 +14,32 @@ export function PaymentForm({ onSubmit, onCancel, isLoading }: PaymentFormProps)
   const [amount, setAmount] = useState("");
   const navigate = useNavigate();
 
-  const handleCreateOrder = async () => {
+  const handleCreateOrder = async (data: any, actions: any) => {
     if (!amount || isNaN(Number(amount)) || Number(amount) <= 0) {
       toast.error("Please enter a valid amount");
       return;
     }
-    return {
+
+    // Convert INR to USD (approximate conversion for demo)
+    const usdAmount = (Number(amount) / 83).toFixed(2); // Using approximate conversion rate
+
+    return actions.order.create({
       purchase_units: [
         {
           amount: {
-            value: amount,
+            value: usdAmount,
             currency_code: "USD"
-          }
+          },
+          description: `Adding ₹${amount} to wallet`
         }
       ]
-    };
+    });
   };
 
   const handleApprove = async (data: any) => {
     try {
       await onSubmit(amount);
-      toast.success("Payment successful!");
+      toast.success("Payment successful! Your balance has been updated.");
       navigate("/dashboard");
     } catch (error: any) {
       console.error("Payment error:", error);
@@ -52,19 +57,22 @@ export function PaymentForm({ onSubmit, onCancel, isLoading }: PaymentFormProps)
       <div className="space-y-4">
         <div className="space-y-2">
           <label htmlFor="amount" className="block text-sm font-medium text-gray-700">
-            Amount (USD)
+            Amount (₹)
           </label>
-          <input
-            id="amount"
-            type="number"
-            min="1"
-            step="1"
-            value={amount}
-            onChange={(e) => setAmount(e.target.value)}
-            className="w-full px-3 py-2 border rounded-md"
-            placeholder="Enter amount"
-            disabled={isLoading}
-          />
+          <div className="relative">
+            <span className="absolute left-3 top-2 text-gray-500">₹</span>
+            <input
+              id="amount"
+              type="number"
+              min="1"
+              step="1"
+              value={amount}
+              onChange={(e) => setAmount(e.target.value)}
+              className="w-full pl-8 pr-3 py-2 border rounded-md"
+              placeholder="Enter amount in rupees"
+              disabled={isLoading}
+            />
+          </div>
         </div>
 
         <PayPalScriptProvider options={{ 

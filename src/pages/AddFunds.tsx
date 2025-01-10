@@ -57,11 +57,9 @@ export default function AddFunds() {
       // Invalidate queries to trigger a refresh of the user's balance
       await queryClient.invalidateQueries({ queryKey: ['profile'] });
       
-      toast.success("Payment successful! Your balance has been updated.");
-      navigate("/dashboard");
     } catch (error: any) {
       console.error("Payment error:", error);
-      toast.error(error.message || "Failed to process payment");
+      throw error;
     } finally {
       setIsLoading(false);
     }
