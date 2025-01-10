@@ -1,126 +1,94 @@
-import { useState } from "react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
+import { PayPalButtons, PayPalScriptProvider } from "@paypal/react-paypal-js";
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import { PayPalScriptProvider, PayPalButtons } from "@paypal/react-paypal-js";
 
 interface PaymentFormProps {
   onSubmit: (amount: string) => Promise<void>;
   onCancel: () => void;
-  isLoading: boolean;
+  isLoading?: boolean;
 }
 
 export function PaymentForm({ onSubmit, onCancel, isLoading }: PaymentFormProps) {
   const [amount, setAmount] = useState("");
-  const [paypalError, setPaypalError] = useState<string | null>(null);
+  const navigate = useNavigate();
 
-  // Access the PayPal Client ID from environment variables
-  const clientId = import.meta.env.VITE_PAYPAL_CLIENT_ID;
-
-  // Debug logging
-  console.log("PayPal Client ID:", {
-    exists: !!clientId,
-    value: clientId || 'not set'
-  });
-
-  const createOrder = (data: any, actions: any) => {
+  const handleCreateOrder = async () => {
     if (!amount || isNaN(Number(amount)) || Number(amount) <= 0) {
       toast.error("Please enter a valid amount");
-      return Promise.reject(new Error("Invalid amount"));
+      return;
     }
-
-    return actions.order.create({
+    return {
       purchase_units: [
         {
           amount: {
             value: amount,
             currency_code: "USD"
-          },
-        },
-      ],
-    });
+          }
+        }
+      ]
+    };
   };
 
-  const onApprove = async (data: any, actions: any) => {
+  const handleApprove = async (data: any) => {
     try {
-      await actions.order.capture();
       await onSubmit(amount);
+      toast.success("Payment successful!");
+      navigate("/dashboard");
     } catch (error: any) {
-      console.error("PayPal payment error:", error);
-      toast.error("Failed to process payment");
-      setPaypalError("Payment processing failed. Please try again.");
+      console.error("Payment error:", error);
+      toast.error(error.message || "Payment failed");
     }
   };
 
-  const onError = (err: any) => {
-    console.error("PayPal Error:", err);
-    setPaypalError("There was an error connecting to PayPal. Please try again.");
-    toast.error("PayPal connection error");
-  };
-
-  // If client ID is not available, show error message
-  if (!clientId) {
-    console.error("PayPal Client ID is missing");
-    return (
-      <Card className="w-full max-w-md p-6">
-        <h1 className="text-2xl font-bold mb-6">Payment System Unavailable</h1>
-        <p className="text-red-500 mb-4">PayPal configuration is missing. Please try again later.</p>
-        <Button
-          variant="outline"
-          onClick={onCancel}
-          className="w-full"
-        >
-          Go Back
-        </Button>
-      </Card>
-    );
-  }
-
   return (
-    <Card className="w-full max-w-md p-6">
-      <h1 className="text-2xl font-bold mb-6">Add Funds (PayPal Sandbox)</h1>
+    <Card className="w-full max-w-md p-6 space-y-6">
+      <div className="space-y-2">
+        <h2 className="text-2xl font-bold text-center">Add Funds</h2>
+        <p className="text-gray-500 text-center">Enter amount to add to your account</p>
+      </div>
+
       <div className="space-y-4">
-        <div>
-          <label htmlFor="amount" className="block text-sm font-medium text-gray-700 mb-1">
-            Amount ($)
+        <div className="space-y-2">
+          <label htmlFor="amount" className="block text-sm font-medium text-gray-700">
+            Amount (USD)
           </label>
-          <Input
+          <input
             id="amount"
             type="number"
+            min="1"
+            step="1"
             value={amount}
             onChange={(e) => setAmount(e.target.value)}
+            className="w-full px-3 py-2 border rounded-md"
             placeholder="Enter amount"
-            min="1"
-            className="w-full"
+            disabled={isLoading}
           />
         </div>
-        
-        {paypalError && (
-          <div className="text-red-500 text-sm">{paypalError}</div>
-        )}
-        
+
         <PayPalScriptProvider options={{ 
-          clientId: clientId,
-          currency: "USD",
-          intent: "capture"
+          clientId: import.meta.env.VITE_PAYPAL_CLIENT_ID || '',
+          currency: "USD"
         }}>
-          <PayPalButtons 
+          <PayPalButtons
             style={{ layout: "vertical" }}
-            createOrder={createOrder}
-            onApprove={onApprove}
-            onError={onError}
-            disabled={isLoading || !amount}
+            createOrder={handleCreateOrder}
+            onApprove={handleApprove}
+            onError={() => {
+              toast.error("PayPal payment failed");
+            }}
+            disabled={isLoading || !amount || Number(amount) <= 0}
           />
         </PayPalScriptProvider>
 
-        <Button
-          variant="outline"
+        <button
           onClick={onCancel}
-          className="w-full"
+          className="w-full px-4 py-2 text-sm text-gray-600 hover:text-gray-800"
+          disabled={isLoading}
         >
           Cancel
-        </Button>
+        </button>
       </div>
     </Card>
   );
