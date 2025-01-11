@@ -8,6 +8,7 @@ import { Card } from "@/components/ui/card";
 import { DesktopNav } from "@/components/dashboard/DesktopNav";
 import { MobileNav } from "@/components/dashboard/MobileNav";
 import { AddFundsCard } from "@/components/dashboard/AddFundsCard";
+import { MarketOverview } from "@/components/dashboard/MarketOverview";
 
 export default function Dashboard() {
   const navigate = useNavigate();
@@ -155,6 +156,10 @@ export default function Dashboard() {
               <LineChart className="h-8 w-8 text-blue-500" />
             </div>
           </Card>
+        </div>
+
+        <div className="mb-8">
+          <MarketOverview />
         </div>
 
         <div className="mb-8">

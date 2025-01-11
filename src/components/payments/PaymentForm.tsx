@@ -47,7 +47,7 @@ export function PaymentForm({ onSubmit, onCancel, isLoading }: PaymentFormProps)
       <Card className="w-full max-w-md p-8">
         <div className="space-y-6">
           <div className="flex justify-center mb-8">
-            <img src="/lovable-uploads/4ae67670-16b0-4c20-b243-45863a8d9aa6.png" alt="PayPal" className="h-12" />
+            <img src="/lovable-uploads/49a50890-f8b0-4b8b-8128-a6a0a920b734.png" alt="PayPal" className="h-12" />
           </div>
 
           <form onSubmit={handlePayment} className="space-y-6">
