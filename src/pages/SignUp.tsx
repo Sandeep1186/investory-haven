@@ -67,6 +67,23 @@ export default function SignUp() {
 
     try {
       setIsLoading(true);
+      
+      // First check if user exists
+      const { data: existingUser } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('id', email)
+        .single();
+
+      if (existingUser) {
+        toast({
+          title: "Account Exists",
+          description: "This email is already registered. Redirecting to sign in...",
+        });
+        setTimeout(() => navigate("/signin"), 2000);
+        return;
+      }
+
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
