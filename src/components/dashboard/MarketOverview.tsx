@@ -35,7 +35,7 @@ export function MarketOverview() {
     }
   });
 
-  const filteredData = selectedType
+  const filteredData = selectedType && selectedType !== 'all'
     ? marketData.filter((item) => item.type.toLowerCase() === selectedType.toLowerCase())
     : marketData;
 
@@ -44,14 +44,14 @@ export function MarketOverview() {
       <div className="flex justify-between items-center mb-6">
         <h2 className="text-xl font-semibold">Market Overview</h2>
         <Select
-          value={selectedType || ""}
-          onValueChange={(value) => setSelectedType(value || null)}
+          value={selectedType || "all"}
+          onValueChange={(value) => setSelectedType(value)}
         >
           <SelectTrigger className="w-[180px]">
             <SelectValue placeholder="Filter by type" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="">All Types</SelectItem>
+            <SelectItem value="all">All Types</SelectItem>
             <SelectItem value="stock">Stocks</SelectItem>
             <SelectItem value="mutual_fund">Mutual Funds</SelectItem>
             <SelectItem value="bond">Bonds</SelectItem>
