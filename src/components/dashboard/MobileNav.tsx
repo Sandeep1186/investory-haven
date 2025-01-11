@@ -40,6 +40,9 @@ export function MobileNav({ profile, userEmail, onLogout }: MobileNavProps) {
             <Button variant="ghost" onClick={() => navigate("/bonds")} className="w-full justify-start">
               View Bonds
             </Button>
+            <Button variant="ghost" onClick={() => navigate("/watchlist")} className="w-full justify-start">
+              Watchlist
+            </Button>
             <div className="py-2">
               <div className="text-sm font-medium">Hello, {profile?.full_name || userEmail}</div>
               <div className="text-xs text-gray-500">{userEmail}</div>

@@ -21,6 +21,9 @@ export function DesktopNav({ profile, userEmail, onLogout }: DesktopNavProps) {
       <Button variant="ghost" onClick={() => navigate("/bonds")}>
         View Bonds
       </Button>
+      <Button variant="ghost" onClick={() => navigate("/watchlist")}>
+        Watchlist
+      </Button>
       <div className="flex items-center gap-2">
         <div className="text-right">
           <div className="text-sm font-medium">Hello, {profile?.full_name || userEmail}</div>

@@ -7,6 +7,7 @@ import StocksList from "./pages/StocksList";
 import MutualFundsList from "./pages/MutualFundsList";
 import BondsList from "./pages/BondsList";
 import AddFunds from "./pages/AddFunds";
+import Watchlist from "./pages/Watchlist";
 import { Toaster } from "@/components/ui/sonner";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
@@ -33,6 +34,7 @@ function App() {
           <Route path="/mutual-funds" element={<MutualFundsList />} />
           <Route path="/bonds" element={<BondsList />} />
           <Route path="/add-funds" element={<AddFunds />} />
+          <Route path="/watchlist" element={<Watchlist />} />
         </Routes>
         <Toaster />
       </Router>
