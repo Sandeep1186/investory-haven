@@ -1,5 +1,4 @@
 import { Card } from "@/components/ui/card";
-import { PayPalButtons, PayPalScriptProvider } from "@paypal/react-paypal-js";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
@@ -12,41 +11,10 @@ interface PaymentFormProps {
 
 export function PaymentForm({ onSubmit, onCancel, isLoading }: PaymentFormProps) {
   const [amount, setAmount] = useState("");
-  const [showPayPal, setShowPayPal] = useState(false);
+  const [showPayPalForm, setShowPayPalForm] = useState(false);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const navigate = useNavigate();
-
-  const handleCreateOrder = async (data: any, actions: any) => {
-    if (!amount || isNaN(Number(amount)) || Number(amount) <= 0) {
-      toast.error("Please enter a valid amount");
-      return;
-    }
-
-    // Convert INR to USD (approximate conversion for demo)
-    const usdAmount = (Number(amount) / 83).toFixed(2);
-
-    return actions.order.create({
-      purchase_units: [
-        {
-          amount: {
-            value: usdAmount,
-            currency_code: "USD"
-          },
-          description: `Adding ₹${amount} to wallet`
-        }
-      ]
-    });
-  };
-
-  const handleApprove = async (data: any) => {
-    try {
-      await onSubmit(amount);
-      toast.success("Payment successful! Your balance has been updated.");
-      navigate("/dashboard");
-    } catch (error: any) {
-      console.error("Payment error:", error);
-      toast.error(error.message || "Payment failed");
-    }
-  };
 
   const handleAmountSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -54,8 +22,85 @@ export function PaymentForm({ onSubmit, onCancel, isLoading }: PaymentFormProps)
       toast.error("Please enter a valid amount");
       return;
     }
-    setShowPayPal(true);
+    setShowPayPalForm(true);
   };
+
+  const handlePayment = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email || !password) {
+      toast.error("Please enter both email and password");
+      return;
+    }
+
+    try {
+      await onSubmit(amount);
+      toast.success("Payment completed successfully!");
+      navigate("/dashboard");
+    } catch (error: any) {
+      toast.error(error.message || "Payment failed");
+      setShowPayPalForm(false);
+    }
+  };
+
+  if (showPayPalForm) {
+    return (
+      <Card className="w-full max-w-md p-8">
+        <div className="space-y-6">
+          <div className="flex justify-center mb-8">
+            <img src="/lovable-uploads/f87be540-a11f-4ef7-be65-2dbf580236c1.png" alt="PayPal" className="h-8" />
+          </div>
+
+          <form onSubmit={handlePayment} className="space-y-6">
+            <div className="space-y-2">
+              <label htmlFor="email" className="block text-gray-600 text-lg">
+                Email or mobile number
+              </label>
+              <input
+                id="email"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="w-full px-4 py-3 border rounded-lg text-lg"
+                placeholder="Enter your email"
+                required
+              />
+            </div>
+
+            <div className="space-y-2">
+              <label htmlFor="password" className="block text-gray-600 text-lg">
+                Password
+              </label>
+              <input
+                id="password"
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="w-full px-4 py-3 border rounded-lg text-lg"
+                placeholder="Enter your password"
+                required
+              />
+            </div>
+
+            <button
+              type="submit"
+              className="w-full bg-[#0070ba] text-white py-4 rounded-full text-lg font-semibold hover:bg-[#003087] transition-colors"
+              disabled={isLoading}
+            >
+              Pay
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setShowPayPalForm(false)}
+              className="w-full text-[#0070ba] hover:underline"
+            >
+              Cancel
+            </button>
+          </form>
+        </div>
+      </Card>
+    );
+  }
 
   return (
     <Card className="w-full max-w-md p-8">
@@ -81,50 +126,27 @@ export function PaymentForm({ onSubmit, onCancel, isLoading }: PaymentFormProps)
                 onChange={(e) => setAmount(e.target.value)}
                 className="w-full pl-10 pr-4 py-3 border-2 border-blue-500 rounded-lg text-lg"
                 placeholder="1000"
-                disabled={isLoading || showPayPal}
+                disabled={isLoading}
               />
             </div>
           </div>
 
-          {!showPayPal && (
-            <button
-              type="submit"
-              className="w-full bg-blue-500 text-white py-3 rounded-lg hover:bg-blue-600 transition-colors"
-              disabled={isLoading}
-            >
-              Continue to Payment
-            </button>
-          )}
+          <button
+            type="submit"
+            className="w-full bg-blue-500 text-white py-3 rounded-lg hover:bg-blue-600 transition-colors"
+            disabled={isLoading}
+          >
+            Continue to Payment
+          </button>
+
+          <button
+            type="button"
+            onClick={onCancel}
+            className="w-full text-gray-500 hover:text-gray-700 transition-colors"
+          >
+            Cancel
+          </button>
         </form>
-
-        {showPayPal && (
-          <PayPalScriptProvider options={{ 
-            clientId: import.meta.env.VITE_PAYPAL_CLIENT_ID || '',
-            currency: "USD"
-          }}>
-            <PayPalButtons
-              style={{ layout: "vertical" }}
-              createOrder={handleCreateOrder}
-              onApprove={handleApprove}
-              onError={() => {
-                toast.error("PayPal payment failed");
-                setShowPayPal(false);
-              }}
-              disabled={isLoading}
-            />
-          </PayPalScriptProvider>
-        )}
-
-        <button
-          onClick={() => {
-            setShowPayPal(false);
-            onCancel();
-          }}
-          className="w-full text-gray-500 hover:text-gray-700 transition-colors"
-          disabled={isLoading}
-        >
-          Cancel
-        </button>
       </div>
     </Card>
   );
