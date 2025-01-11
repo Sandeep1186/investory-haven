@@ -13,8 +13,18 @@ export default function SignUp() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [fullName, setFullName] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [passwordError, setPasswordError] = useState("");
   const navigate = useNavigate();
   const { toast } = useToast();
+
+  const validatePassword = (password: string) => {
+    if (password.length < 6) {
+      setPasswordError("Password must be at least 6 characters long");
+      return false;
+    }
+    setPasswordError("");
+    return true;
+  };
 
   const sendWelcomeEmail = async (email: string, fullName: string) => {
     try {
@@ -42,6 +52,10 @@ export default function SignUp() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    if (!validatePassword(password)) {
+      return;
+    }
+
     if (password !== confirmPassword) {
       toast({
         title: "Error",
@@ -66,7 +80,6 @@ export default function SignUp() {
       if (error) {
         console.error("Signup error:", error);
         
-        // Check for specific error codes
         if (error.message.includes("User already registered") || 
             (error as any).code === "user_already_exists") {
           toast({
@@ -77,7 +90,6 @@ export default function SignUp() {
           return;
         }
         
-        // Handle other errors
         toast({
           title: "Error",
           description: error.message,
@@ -87,7 +99,6 @@ export default function SignUp() {
       }
 
       if (data) {
-        // Send welcome email
         await sendWelcomeEmail(email, fullName);
         
         toast({
@@ -148,12 +159,18 @@ export default function SignUp() {
                 id="password"
                 type="password"
                 value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                onChange={(e) => {
+                  setPassword(e.target.value);
+                  validatePassword(e.target.value);
+                }}
                 required
                 className="w-full"
-                placeholder="Create a password"
+                placeholder="Create a password (min. 6 characters)"
                 disabled={isLoading}
               />
+              {passwordError && (
+                <p className="text-sm text-destructive mt-1">{passwordError}</p>
+              )}
             </div>
             <div className="space-y-2">
               <Label htmlFor="confirmPassword">Confirm Password</Label>
