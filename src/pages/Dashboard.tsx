@@ -1,4 +1,4 @@
-import { LineChart } from "lucide-react";
+import { LineChart, Grid, List } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
 import { PortfolioSection } from "@/components/portfolio/PortfolioSection";
@@ -9,9 +9,17 @@ import { DesktopNav } from "@/components/dashboard/DesktopNav";
 import { MobileNav } from "@/components/dashboard/MobileNav";
 import { AddFundsCard } from "@/components/dashboard/AddFundsCard";
 import { MarketOverview } from "@/components/dashboard/MarketOverview";
+import { useState } from "react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 export default function Dashboard() {
   const navigate = useNavigate();
+  const [view, setView] = useState<'market' | 'portfolio'>('market');
 
   const { data: userData } = useQuery({
     queryKey: ['user'],
@@ -39,7 +47,6 @@ export default function Dashboard() {
     }
   });
 
-  // Fetch investments data
   const { data: investments = [] } = useQuery({
     queryKey: ['investments'],
     enabled: !!userData,
@@ -68,7 +75,6 @@ export default function Dashboard() {
     }
   });
 
-  // Calculate total investments value
   const calculateTotalInvestments = () => {
     const marketDataMap = marketDataArray.reduce((acc: any, item: any) => {
       acc[item.symbol] = item;
@@ -149,7 +155,28 @@ export default function Dashboard() {
           <Card className="p-6 bg-blue-50">
             <div className="flex justify-between items-start">
               <div>
-                <p className="text-sm font-medium text-gray-500">Total Investments</p>
+                <div className="flex items-center gap-4">
+                  <p className="text-sm font-medium text-gray-500">Total Investments</p>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-9 px-3">
+                      {view === 'market' ? (
+                        <Grid className="h-4 w-4" />
+                      ) : (
+                        <List className="h-4 w-4" />
+                      )}
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="bg-white">
+                      <DropdownMenuItem onClick={() => setView('market')}>
+                        <Grid className="mr-2 h-4 w-4" />
+                        Market Overview
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => setView('portfolio')}>
+                        <List className="mr-2 h-4 w-4" />
+                        My Portfolio
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
                 <h3 className="text-2xl font-bold mt-1">₹{calculateTotalInvestments().toLocaleString()}</h3>
                 <p className="text-sm text-gray-500 mt-1">Active Positions: {investments.length}</p>
               </div>
@@ -158,14 +185,16 @@ export default function Dashboard() {
           </Card>
         </div>
 
-        <div className="mb-8">
-          <MarketOverview />
-        </div>
-
-        <div className="mb-8">
-          <h2 className="text-xl font-semibold mb-4">My Portfolio</h2>
-          <PortfolioSection />
-        </div>
+        {view === 'market' ? (
+          <div className="mb-8">
+            <MarketOverview />
+          </div>
+        ) : (
+          <div className="mb-8">
+            <h2 className="text-xl font-semibold mb-4">My Portfolio</h2>
+            <PortfolioSection />
+          </div>
+        )}
 
         <div className="mt-8">
           <AddFundsCard onAddFunds={handleAddFunds} />
