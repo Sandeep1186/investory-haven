@@ -1,8 +1,10 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
+// Define proper CORS headers
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS'
 }
 
 interface AlphaVantageResponse {
@@ -25,49 +27,53 @@ Deno.serve(async (req) => {
   }
 
   try {
-    console.log('Starting market data update...');
+    // Validate environment variables
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')
+    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
+    const alphaVantageKey = Deno.env.get('ALPHA_VANTAGE_API_KEY')
 
-    const supabaseClient = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-    )
+    if (!supabaseUrl || !supabaseKey || !alphaVantageKey) {
+      throw new Error('Missing required environment variables')
+    }
+
+    console.log('Starting market data update...')
+
+    const supabaseClient = createClient(supabaseUrl, supabaseKey)
 
     // Fetch current market data from database
     const { data: marketData, error: fetchError } = await supabaseClient
       .from('market_data')
-      .select('symbol, type')
+      .select('symbol')
 
     if (fetchError) {
-      console.error('Error fetching market data:', fetchError);
-      throw fetchError;
+      console.error('Error fetching market data:', fetchError)
+      throw fetchError
     }
 
-    if (!marketData) {
+    if (!marketData || marketData.length === 0) {
       throw new Error('No market data found')
     }
 
-    const ALPHA_VANTAGE_API_KEY = Deno.env.get('ALPHA_VANTAGE_API_KEY')
-    if (!ALPHA_VANTAGE_API_KEY) {
-      throw new Error('Alpha Vantage API key not found')
-    }
-    
-    console.log(`Found ${marketData.length} symbols to update`);
-    
+    console.log(`Found ${marketData.length} symbols to update`)
+
     // Update each symbol's data
     for (const item of marketData) {
       try {
-        console.log(`Updating symbol: ${item.symbol}`);
-        
+        console.log(`Updating symbol: ${item.symbol}`)
+
         const response = await fetch(
-          `https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=${item.symbol}&apikey=${ALPHA_VANTAGE_API_KEY}`
+          `https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=${item.symbol}&apikey=${alphaVantageKey}`
         )
-        
+
+        if (!response.ok) {
+          throw new Error(`Alpha Vantage API responded with status: ${response.status}`)
+        }
+
         const data: AlphaVantageResponse = await response.json()
-        
+
         if (data['Global Quote']) {
           const quote = data['Global Quote']
-          
-          // Update market data in Supabase
+
           const { error: updateError } = await supabaseClient
             .from('market_data')
             .update({
@@ -78,15 +84,15 @@ Deno.serve(async (req) => {
             .eq('symbol', item.symbol)
 
           if (updateError) {
-            console.error(`Error updating symbol ${item.symbol}:`, updateError);
+            console.error(`Error updating symbol ${item.symbol}:`, updateError)
           } else {
-            console.log(`Successfully updated ${item.symbol}`);
+            console.log(`Successfully updated ${item.symbol}`)
           }
         } else {
-          console.log(`No quote data found for ${item.symbol}`);
+          console.log(`No quote data found for ${item.symbol}`)
         }
       } catch (error) {
-        console.error(`Error processing symbol ${item.symbol}:`, error);
+        console.error(`Error processing symbol ${item.symbol}:`, error)
         // Continue with next symbol even if this one fails
       }
 
@@ -102,12 +108,12 @@ Deno.serve(async (req) => {
       }
     )
   } catch (error) {
-    console.error('Error in update-market-data function:', error);
-    
+    console.error('Error in update-market-data function:', error)
+
     return new Response(
-      JSON.stringify({ 
+      JSON.stringify({
         error: error.message,
-        details: error.stack 
+        details: error.stack
       }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
