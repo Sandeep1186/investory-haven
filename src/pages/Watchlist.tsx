@@ -4,6 +4,7 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Responsi
 import { Tables } from "@/integrations/supabase/types";
 import { useQuery } from "@tanstack/react-query";
 import { Card } from "@/components/ui/card";
+import { toast } from "sonner";
 
 type MarketData = Tables<"market_data">;
 
@@ -13,10 +14,16 @@ export default function Watchlist() {
   const { data: initialMarketData } = useQuery({
     queryKey: ['market-data'],
     queryFn: async () => {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from('market_data')
         .select('*')
         .order('created_at', { ascending: false });
+      
+      if (error) {
+        toast.error("Failed to fetch market data");
+        throw error;
+      }
+      
       return data as MarketData[];
     }
   });
@@ -28,28 +35,46 @@ export default function Watchlist() {
   }, [initialMarketData]);
 
   useEffect(() => {
+    // Subscribe to real-time changes
     const channel = supabase
       .channel('market-data-changes')
       .on(
         'postgres_changes',
         {
-          event: '*',
+          event: '*', // Listen to all events (INSERT, UPDATE, DELETE)
           schema: 'public',
           table: 'market_data'
         },
         (payload) => {
-          console.log('Real-time update:', payload);
-          if (payload.eventType === 'UPDATE') {
+          console.log('Real-time update received:', payload);
+          
+          if (payload.eventType === 'INSERT') {
+            setRealtimeData(prev => [...prev, payload.new as MarketData]);
+          } 
+          else if (payload.eventType === 'UPDATE') {
             setRealtimeData(prev => 
               prev.map(item => 
                 item.id === payload.new.id ? { ...item, ...payload.new } : item
               )
             );
           }
+          else if (payload.eventType === 'DELETE') {
+            setRealtimeData(prev => 
+              prev.filter(item => item.id !== payload.old.id)
+            );
+          }
+
+          // Show toast notification for updates
+          toast.info(`Market data ${payload.eventType.toLowerCase()}ed`);
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        if (status === 'SUBSCRIBED') {
+          console.log('Successfully subscribed to real-time updates');
+        }
+      });
 
+    // Cleanup subscription on unmount
     return () => {
       supabase.removeChannel(channel);
     };
@@ -74,12 +99,14 @@ export default function Watchlist() {
                 dataKey="price" 
                 stroke="#8884d8" 
                 name="Price"
+                isAnimationActive={false} // Disable animation for real-time updates
               />
               <Line 
                 type="monotone" 
                 dataKey="change" 
                 stroke="#82ca9d" 
                 name="Change"
+                isAnimationActive={false} // Disable animation for real-time updates
               />
             </LineChart>
           </ResponsiveContainer>
