@@ -33,17 +33,19 @@ export default function Watchlist() {
   const updateMarketData = async () => {
     try {
       const { error } = await supabase.functions.invoke('update-market-data', {
-        method: 'POST'
+        method: 'POST',
       });
 
       if (error) {
+        console.error('Error updating market data:', error);
+        toast.error('Failed to update market data. Please try again later.');
         throw error;
       }
 
       toast.success('Market data updated successfully');
     } catch (error) {
       console.error('Error updating market data:', error);
-      toast.error('Failed to update market data');
+      toast.error('Failed to update market data. Please try again later.');
     }
   };
 
