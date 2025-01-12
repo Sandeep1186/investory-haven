@@ -1,6 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
-// Define proper CORS headers
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -66,34 +65,41 @@ Deno.serve(async (req) => {
         )
 
         if (!response.ok) {
-          throw new Error(`Alpha Vantage API responded with status: ${response.status}`)
+          console.error(`Alpha Vantage API error for ${item.symbol}: ${response.status}`)
+          continue
         }
 
         const data: AlphaVantageResponse = await response.json()
 
-        if (data['Global Quote']) {
+        if (data['Global Quote'] && data['Global Quote']['05. price']) {
           const quote = data['Global Quote']
+          const price = parseFloat(quote['05. price'])
+          const change = parseFloat(quote['09. change'])
 
-          const { error: updateError } = await supabaseClient
-            .from('market_data')
-            .update({
-              price: parseFloat(quote['05. price']),
-              change: parseFloat(quote['09. change']),
-              updated_at: new Date().toISOString()
-            })
-            .eq('symbol', item.symbol)
+          // Only update if we have valid numbers
+          if (!isNaN(price) && !isNaN(change)) {
+            const { error: updateError } = await supabaseClient
+              .from('market_data')
+              .update({
+                price: price,
+                change: change,
+                updated_at: new Date().toISOString()
+              })
+              .eq('symbol', item.symbol)
 
-          if (updateError) {
-            console.error(`Error updating symbol ${item.symbol}:`, updateError)
+            if (updateError) {
+              console.error(`Error updating symbol ${item.symbol}:`, updateError)
+            } else {
+              console.log(`Successfully updated ${item.symbol} with price: ${price}, change: ${change}`)
+            }
           } else {
-            console.log(`Successfully updated ${item.symbol}`)
+            console.error(`Invalid price/change values for ${item.symbol}`)
           }
         } else {
-          console.log(`No quote data found for ${item.symbol}`)
+          console.log(`No valid quote data found for ${item.symbol}`)
         }
       } catch (error) {
         console.error(`Error processing symbol ${item.symbol}:`, error)
-        // Continue with next symbol even if this one fails
       }
 
       // Alpha Vantage has a rate limit of 5 calls per minute for free tier
