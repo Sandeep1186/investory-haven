@@ -28,20 +28,44 @@ export default function Watchlist() {
     }
   });
 
+  // Function to trigger market data update
+  const updateMarketData = async () => {
+    try {
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/update-market-data`,
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+          },
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error('Failed to update market data');
+      }
+
+      toast.success('Market data updated successfully');
+    } catch (error) {
+      console.error('Error updating market data:', error);
+      toast.error('Failed to update market data');
+    }
+  };
+
   useEffect(() => {
     if (initialMarketData) {
       setRealtimeData(initialMarketData);
     }
   }, [initialMarketData]);
 
+  // Set up real-time subscription
   useEffect(() => {
-    // Subscribe to real-time changes
     const channel = supabase
       .channel('market-data-changes')
       .on(
         'postgres_changes',
         {
-          event: '*', // Listen to all events (INSERT, UPDATE, DELETE)
+          event: '*',
           schema: 'public',
           table: 'market_data'
         },
@@ -64,7 +88,6 @@ export default function Watchlist() {
             );
           }
 
-          // Show toast notification for updates
           toast.info(`Market data ${payload.eventType.toLowerCase()}ed`);
         }
       )
@@ -74,9 +97,16 @@ export default function Watchlist() {
         }
       });
 
-    // Cleanup subscription on unmount
+    // Set up periodic updates (every 5 minutes)
+    const updateInterval = setInterval(updateMarketData, 5 * 60 * 1000);
+
+    // Initial update
+    updateMarketData();
+
+    // Cleanup subscription and interval on unmount
     return () => {
       supabase.removeChannel(channel);
+      clearInterval(updateInterval);
     };
   }, []);
 
@@ -99,14 +129,14 @@ export default function Watchlist() {
                 dataKey="price" 
                 stroke="#8884d8" 
                 name="Price"
-                isAnimationActive={false} // Disable animation for real-time updates
+                isAnimationActive={false}
               />
               <Line 
                 type="monotone" 
                 dataKey="change" 
                 stroke="#82ca9d" 
                 name="Change"
-                isAnimationActive={false} // Disable animation for real-time updates
+                isAnimationActive={false}
               />
             </LineChart>
           </ResponsiveContainer>
