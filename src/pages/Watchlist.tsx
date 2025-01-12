@@ -31,18 +31,12 @@ export default function Watchlist() {
   // Function to trigger market data update
   const updateMarketData = async () => {
     try {
-      const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/update-market-data`,
-        {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
-          },
-        }
-      );
+      const { error } = await supabase.functions.invoke('update-market-data', {
+        method: 'POST'
+      });
 
-      if (!response.ok) {
-        throw new Error('Failed to update market data');
+      if (error) {
+        throw error;
       }
 
       toast.success('Market data updated successfully');
