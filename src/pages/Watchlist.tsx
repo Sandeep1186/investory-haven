@@ -5,6 +5,7 @@ import { Tables } from "@/integrations/supabase/types";
 import { useQuery } from "@tanstack/react-query";
 import { Card } from "@/components/ui/card";
 import { toast } from "sonner";
+import { TrendingUp, TrendingDown } from "lucide-react";
 
 type MarketData = Tables<"market_data">;
 
@@ -106,44 +107,94 @@ export default function Watchlist() {
 
   const renderChart = (type: string) => {
     const filteredData = realtimeData?.filter(item => item.type === type) || [];
+    const chartTitle = type.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
     
     return (
-      <Card className="p-4 mb-6">
-        <h2 className="text-xl font-semibold mb-4">{type.charAt(0).toUpperCase() + type.slice(1)}s Performance</h2>
+      <Card className="p-6 bg-white shadow-sm border border-gray-200 rounded-xl">
+        <div className="mb-6">
+          <h2 className="text-xl font-semibold text-gray-800">{chartTitle}s Performance</h2>
+          <p className="text-sm text-gray-500 mt-1">Real-time market performance tracking</p>
+        </div>
         <div className="h-[300px]">
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={filteredData}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="symbol" />
-              <YAxis />
-              <Tooltip />
+              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+              <XAxis 
+                dataKey="symbol" 
+                tick={{ fill: '#666' }}
+                axisLine={{ stroke: '#e5e7eb' }}
+              />
+              <YAxis 
+                tick={{ fill: '#666' }}
+                axisLine={{ stroke: '#e5e7eb' }}
+              />
+              <Tooltip 
+                contentStyle={{ 
+                  backgroundColor: 'white',
+                  border: '1px solid #e5e7eb',
+                  borderRadius: '8px',
+                  boxShadow: '0 2px 4px rgba(0,0,0,0.05)'
+                }}
+              />
               <Legend />
               <Line 
                 type="monotone" 
                 dataKey="price" 
-                stroke="#8884d8" 
+                stroke="#6366f1" 
                 name="Price"
+                strokeWidth={2}
+                dot={{ fill: '#6366f1', strokeWidth: 2 }}
                 isAnimationActive={false}
               />
               <Line 
                 type="monotone" 
                 dataKey="change" 
-                stroke="#82ca9d" 
-                name="Change"
+                stroke="#22c55e" 
+                name="Change %"
+                strokeWidth={2}
+                dot={{ fill: '#22c55e', strokeWidth: 2 }}
                 isAnimationActive={false}
               />
             </LineChart>
           </ResponsiveContainer>
+        </div>
+        <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {filteredData.map((item) => (
+            <div key={item.symbol} className="p-4 bg-gray-50 rounded-lg">
+              <div className="flex justify-between items-start">
+                <div>
+                  <h3 className="font-medium text-gray-900">{item.symbol}</h3>
+                  <p className="text-sm text-gray-500">{item.name}</p>
+                </div>
+                <div className={`flex items-center ${item.change >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                  {item.change >= 0 ? (
+                    <TrendingUp className="h-4 w-4 mr-1" />
+                  ) : (
+                    <TrendingDown className="h-4 w-4 mr-1" />
+                  )}
+                  {item.change}%
+                </div>
+              </div>
+              <div className="mt-2">
+                <span className="text-lg font-semibold text-gray-900">₹{item.price.toLocaleString()}</span>
+              </div>
+            </div>
+          ))}
         </div>
       </Card>
     );
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
-      <div className="max-w-7xl mx-auto">
-        <h1 className="text-2xl font-bold mb-6">Market Watchlist</h1>
-        <div className="space-y-6">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
+      <div className="max-w-7xl mx-auto p-6">
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+            Market Watchlist
+          </h1>
+          <p className="text-gray-600 mt-2">Track real-time performance of your favorite investments</p>
+        </div>
+        <div className="space-y-8">
           {renderChart('stock')}
           {renderChart('mutual_fund')}
           {renderChart('bond')}
