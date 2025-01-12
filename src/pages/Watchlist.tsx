@@ -34,6 +34,9 @@ export default function Watchlist() {
     try {
       const { error } = await supabase.functions.invoke('update-market-data', {
         method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
       });
 
       if (error) {
