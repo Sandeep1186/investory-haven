@@ -32,23 +32,20 @@ export default function Watchlist() {
   // Function to trigger market data update
   const updateMarketData = async () => {
     try {
-      const { error } = await supabase.functions.invoke('update-market-data', {
+      const { data, error } = await supabase.functions.invoke('update-market-data', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
       });
 
       if (error) {
         console.error('Error updating market data:', error);
-        toast.error('Failed to update market data. Please try again later.');
-        throw error;
+        toast.error('Failed to update market data');
+        return;
       }
 
       toast.success('Market data updated successfully');
     } catch (error) {
       console.error('Error updating market data:', error);
-      toast.error('Failed to update market data. Please try again later.');
+      toast.error('Failed to update market data');
     }
   };
 
@@ -87,8 +84,6 @@ export default function Watchlist() {
               prev.filter(item => item.id !== payload.old.id)
             );
           }
-
-          toast.info(`Market data ${payload.eventType.toLowerCase()}ed`);
         }
       )
       .subscribe((status) => {
