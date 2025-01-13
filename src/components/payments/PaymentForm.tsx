@@ -6,10 +6,11 @@ import { supabase } from "@/integrations/supabase/client";
 
 interface PaymentFormProps {
   onSubmit: (amount: string) => Promise<void>;
+  onCancel?: () => void;
   isLoading?: boolean;
 }
 
-export function PaymentForm({ onSubmit, isLoading = false }: PaymentFormProps) {
+export function PaymentForm({ onSubmit, onCancel, isLoading = false }: PaymentFormProps) {
   const [amount, setAmount] = useState("");
   const [showPayPalForm, setShowPayPalForm] = useState(false);
   const [email, setEmail] = useState("");
@@ -82,6 +83,15 @@ export function PaymentForm({ onSubmit, isLoading = false }: PaymentFormProps) {
         >
           Continue
         </button>
+        {onCancel && (
+          <button
+            type="button"
+            onClick={onCancel}
+            className="w-full text-indigo-600 hover:underline mt-2"
+          >
+            Cancel
+          </button>
+        )}
       </form>
     );
   }
