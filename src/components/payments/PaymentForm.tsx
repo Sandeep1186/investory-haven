@@ -2,6 +2,7 @@ import { Card } from "@/components/ui/card";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
+import { Loader2 } from "lucide-react";
 
 interface PaymentFormProps {
   onSubmit: (amount: string) => Promise<void>;
@@ -14,6 +15,7 @@ export function PaymentForm({ onSubmit, onCancel, isLoading }: PaymentFormProps)
   const [showPayPalForm, setShowPayPalForm] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [isProcessing, setIsProcessing] = useState(false);
   const navigate = useNavigate();
 
   const handleAmountSubmit = (e: React.FormEvent) => {
@@ -32,13 +34,19 @@ export function PaymentForm({ onSubmit, onCancel, isLoading }: PaymentFormProps)
       return;
     }
 
+    setIsProcessing(true);
     try {
       await onSubmit(amount);
       toast.success("Payment completed successfully!");
-      navigate("/dashboard");
+      // Short delay to show the success message before redirecting
+      setTimeout(() => {
+        navigate("/dashboard");
+      }, 1500);
     } catch (error: any) {
       toast.error(error.message || "Payment failed");
       setShowPayPalForm(false);
+    } finally {
+      setIsProcessing(false);
     }
   };
 
@@ -63,6 +71,7 @@ export function PaymentForm({ onSubmit, onCancel, isLoading }: PaymentFormProps)
                 className="w-full px-4 py-3 border rounded-lg text-lg"
                 placeholder="Enter your email"
                 required
+                disabled={isProcessing}
               />
             </div>
 
@@ -78,21 +87,30 @@ export function PaymentForm({ onSubmit, onCancel, isLoading }: PaymentFormProps)
                 className="w-full px-4 py-3 border rounded-lg text-lg"
                 placeholder="Enter your password"
                 required
+                disabled={isProcessing}
               />
             </div>
 
             <button
               type="submit"
-              className="w-full bg-[#0070ba] text-white py-4 rounded-full text-lg font-semibold hover:bg-[#003087] transition-colors"
-              disabled={isLoading}
+              className="w-full bg-[#0070ba] text-white py-4 rounded-full text-lg font-semibold hover:bg-[#003087] transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+              disabled={isProcessing || isLoading}
             >
-              Pay
+              {isProcessing ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Processing...
+                </>
+              ) : (
+                "Pay"
+              )}
             </button>
 
             <button
               type="button"
               onClick={() => setShowPayPalForm(false)}
               className="w-full text-[#0070ba] hover:underline"
+              disabled={isProcessing}
             >
               Cancel
             </button>
