@@ -18,11 +18,20 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 
 export default function Dashboard() {
   const navigate = useNavigate();
   const [view, setView] = useState<'market' | 'portfolio'>('market');
   const [searchQuery, setSearchQuery] = useState('');
+  const [showSearchResults, setShowSearchResults] = useState(false);
 
   const { data: userData } = useQuery({
     queryKey: ['user'],
@@ -65,60 +74,33 @@ export default function Dashboard() {
     }
   });
 
-  // Fetch market data for calculating current values
-  const { data: marketDataArray = [] } = useQuery({
+  const { data: marketData = [] } = useQuery({
     queryKey: ['marketData'],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("market_data")
-        .select("symbol, price");
+        .select("*")
+        .order('name');
 
       if (error) throw error;
       return data || [];
     }
   });
 
-  const calculateTotalInvestments = () => {
-    const marketDataMap = marketDataArray.reduce((acc: any, item: any) => {
-      acc[item.symbol] = item;
-      return acc;
-    }, {});
+  const filteredResults = searchQuery
+    ? marketData.filter(item => 
+        item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        item.symbol.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        item.type.toLowerCase().includes(searchQuery.toLowerCase())
+      )
+    : [];
 
-    return investments.reduce((total, investment) => {
-      const currentPrice = marketDataMap[investment.symbol]?.price || investment.purchase_price;
-      const investmentValue = investment.quantity * currentPrice;
-      return total + investmentValue;
-    }, 0);
-  };
-
-  const handleAddFunds = async () => {
-    const amountInput = document.querySelector('input[type="number"]') as HTMLInputElement;
-    const amount = amountInput?.value;
-
-    if (!amount || isNaN(Number(amount)) || Number(amount) <= 0) {
-      toast.error("Please enter a valid amount");
+  const handleSearch = () => {
+    if (!searchQuery.trim()) {
+      toast.error("Please enter a search term");
       return;
     }
-
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("Not authenticated");
-
-      const newBalance = (profile?.balance || 0) + Number(amount);
-
-      const { error: updateError } = await supabase
-        .from("profiles")
-        .update({ balance: newBalance })
-        .eq("id", user.id);
-
-      if (updateError) throw updateError;
-
-      refetchProfile();
-      amountInput.value = ''; // Clear the input after successful addition
-      toast.success(`Successfully added ₹${amount}`);
-    } catch (error: any) {
-      toast.error("Failed to add funds: " + error.message);
-    }
+    setShowSearchResults(true);
   };
 
   const handleLogout = async () => {
@@ -126,21 +108,60 @@ export default function Dashboard() {
     navigate("/");
   };
 
-  const handleSearch = () => {
-    if (!searchQuery.trim()) {
-      toast.error("Please enter a search term");
-      return;
-    }
-    
-    // Navigate to the appropriate page based on the search query
-    const searchTerm = searchQuery.toLowerCase();
-    if (searchTerm.includes('bond')) {
-      navigate('/bonds');
-    } else if (searchTerm.includes('mutual') || searchTerm.includes('fund')) {
-      navigate('/mutual-funds');
-    } else {
-      navigate('/stocks');
-    }
+  const renderSearchResults = () => {
+    if (!showSearchResults) return null;
+
+    return (
+      <Card className="p-6 mt-6">
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-xl font-semibold">Search Results</h2>
+          <Button 
+            variant="outline" 
+            onClick={() => {
+              setShowSearchResults(false);
+              setSearchQuery('');
+            }}
+          >
+            Clear Search
+          </Button>
+        </div>
+        {filteredResults.length > 0 ? (
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>NAME</TableHead>
+                <TableHead>TYPE</TableHead>
+                <TableHead>PRICE</TableHead>
+                <TableHead>CHANGE</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {filteredResults.map((item) => (
+                <TableRow key={item.id}>
+                  <TableCell className="font-medium">
+                    <div className="flex items-center gap-2">
+                      <span className={`${item.change >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                        {item.change >= 0 ? '↗' : '↘'}
+                      </span>
+                      {item.name}
+                    </div>
+                  </TableCell>
+                  <TableCell className="capitalize">{item.type.replace('_', ' ')}</TableCell>
+                  <TableCell>₹{item.price.toFixed(2)}</TableCell>
+                  <TableCell className={item.change >= 0 ? 'text-green-500' : 'text-red-500'}>
+                    {item.change >= 0 ? '+' : ''}{item.change}%
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        ) : (
+          <div className="text-center py-8 text-gray-500">
+            No results found for "{searchQuery}"
+          </div>
+        )}
+      </Card>
+    );
   };
 
   return (
@@ -211,6 +232,7 @@ export default function Dashboard() {
                 placeholder="Search stocks, mutual funds, or bonds..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
                 className="flex-1"
               />
               <Button onClick={handleSearch} className="flex items-center gap-2">
@@ -221,15 +243,21 @@ export default function Dashboard() {
           </Card>
         </div>
 
-        {view === 'market' ? (
-          <div className="mb-8">
-            <MarketOverview />
-          </div>
+        {showSearchResults ? (
+          renderSearchResults()
         ) : (
-          <div className="mb-8">
-            <h2 className="text-xl font-semibold mb-4">My Portfolio</h2>
-            <PortfolioSection />
-          </div>
+          <>
+            {view === 'market' ? (
+              <div className="mb-8">
+                <MarketOverview />
+              </div>
+            ) : (
+              <div className="mb-8">
+                <h2 className="text-xl font-semibold mb-4">My Portfolio</h2>
+                <PortfolioSection />
+              </div>
+            )}
+          </>
         )}
 
         <div className="mt-8">
