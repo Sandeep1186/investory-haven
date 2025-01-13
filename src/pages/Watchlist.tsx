@@ -5,11 +5,14 @@ import { Tables } from "@/integrations/supabase/types";
 import { useQuery } from "@tanstack/react-query";
 import { Card } from "@/components/ui/card";
 import { toast } from "sonner";
-import { TrendingUp, TrendingDown } from "lucide-react";
+import { TrendingUp, TrendingDown, ArrowLeft } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { useNavigate } from "react-router-dom";
 
 type MarketData = Tables<"market_data">;
 
 export default function Watchlist() {
+  const navigate = useNavigate();
   const [realtimeData, setRealtimeData] = useState<MarketData[]>([]);
 
   const { data: initialMarketData } = useQuery({
@@ -188,11 +191,21 @@ export default function Watchlist() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
       <div className="max-w-7xl mx-auto p-6">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-            Market Watchlist
-          </h1>
-          <p className="text-gray-600 mt-2">Track real-time performance of your favorite investments</p>
+        <div className="flex justify-between items-center mb-8">
+          <div>
+            <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+              Market Watchlist
+            </h1>
+            <p className="text-gray-600 mt-2">Track real-time performance of your favorite investments</p>
+          </div>
+          <Button 
+            variant="outline" 
+            onClick={() => navigate('/dashboard')}
+            className="flex items-center gap-2"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Back to Dashboard
+          </Button>
         </div>
         <div className="space-y-8">
           {renderChart('stock')}

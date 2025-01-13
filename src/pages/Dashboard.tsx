@@ -1,4 +1,4 @@
-import { LineChart, Grid, List } from "lucide-react";
+import { LineChart, Grid, List, Search } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
 import { PortfolioSection } from "@/components/portfolio/PortfolioSection";
@@ -10,6 +10,8 @@ import { MobileNav } from "@/components/dashboard/MobileNav";
 import { AddFundsCard } from "@/components/dashboard/AddFundsCard";
 import { MarketOverview } from "@/components/dashboard/MarketOverview";
 import { useState } from "react";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -20,6 +22,7 @@ import {
 export default function Dashboard() {
   const navigate = useNavigate();
   const [view, setView] = useState<'market' | 'portfolio'>('market');
+  const [searchQuery, setSearchQuery] = useState('');
 
   const { data: userData } = useQuery({
     queryKey: ['user'],
@@ -123,6 +126,23 @@ export default function Dashboard() {
     navigate("/");
   };
 
+  const handleSearch = () => {
+    if (!searchQuery.trim()) {
+      toast.error("Please enter a search term");
+      return;
+    }
+    
+    // Navigate to the appropriate page based on the search query
+    const searchTerm = searchQuery.toLowerCase();
+    if (searchTerm.includes('bond')) {
+      navigate('/bonds');
+    } else if (searchTerm.includes('mutual') || searchTerm.includes('fund')) {
+      navigate('/mutual-funds');
+    } else {
+      navigate('/stocks');
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
       <nav className="bg-white border-b">
@@ -181,6 +201,22 @@ export default function Dashboard() {
                 <p className="text-sm text-gray-500 mt-1">Active Positions: {investments.length}</p>
               </div>
               <LineChart className="h-8 w-8 text-blue-500" />
+            </div>
+          </Card>
+
+          <Card className="p-6">
+            <div className="flex gap-2">
+              <Input
+                type="text"
+                placeholder="Search stocks, mutual funds, or bonds..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="flex-1"
+              />
+              <Button onClick={handleSearch} className="flex items-center gap-2">
+                <Search className="h-4 w-4" />
+                Search
+              </Button>
             </div>
           </Card>
         </div>
