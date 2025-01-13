@@ -87,6 +87,18 @@ export default function Dashboard() {
     }
   });
 
+  // Calculate total investments value
+  const calculateTotalInvestments = () => {
+    return investments.reduce((total, investment) => {
+      const currentPrice = marketData.find(item => item.symbol === investment.symbol)?.price || investment.purchase_price;
+      return total + (currentPrice * investment.quantity);
+    }, 0);
+  };
+
+  const handleAddFunds = () => {
+    navigate("/add-funds");
+  };
+
   const filteredResults = searchQuery
     ? marketData.filter(item => 
         item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
