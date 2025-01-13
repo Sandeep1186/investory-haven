@@ -1,16 +1,15 @@
-import { Card } from "@/components/ui/card";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 
 interface PaymentFormProps {
   onSubmit: (amount: string) => Promise<void>;
-  onCancel: () => void;
   isLoading?: boolean;
 }
 
-export function PaymentForm({ onSubmit, onCancel, isLoading }: PaymentFormProps) {
+export function PaymentForm({ onSubmit, isLoading = false }: PaymentFormProps) {
   const [amount, setAmount] = useState("");
   const [showPayPalForm, setShowPayPalForm] = useState(false);
   const [email, setEmail] = useState("");
@@ -30,14 +29,24 @@ export function PaymentForm({ onSubmit, onCancel, isLoading }: PaymentFormProps)
   const handlePayment = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email || !password) {
-      toast.error("Please enter both email and password");
+      toast.error("Please fill in all fields");
       return;
     }
 
     setIsProcessing(true);
     try {
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      if (signInError) {
+        throw new Error(signInError.message);
+      }
+
       await onSubmit(amount);
       toast.success("Payment completed successfully!");
+      
       // Short delay to show the success message before redirecting
       setTimeout(() => {
         navigate("/dashboard");
@@ -50,122 +59,100 @@ export function PaymentForm({ onSubmit, onCancel, isLoading }: PaymentFormProps)
     }
   };
 
-  if (showPayPalForm) {
+  if (!showPayPalForm) {
     return (
-      <Card className="w-full max-w-md p-8">
-        <div className="space-y-6">
-          <div className="flex justify-center mb-8">
-            <img src="/lovable-uploads/49a50890-f8b0-4b8b-8128-a6a0a920b734.png" alt="PayPal" className="h-12" />
-          </div>
-
-          <form onSubmit={handlePayment} className="space-y-6">
-            <div className="space-y-2">
-              <label htmlFor="email" className="block text-gray-600 text-lg">
-                Email or mobile number
-              </label>
-              <input
-                id="email"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="w-full px-4 py-3 border rounded-lg text-lg"
-                placeholder="Enter your email"
-                required
-                disabled={isProcessing}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <label htmlFor="password" className="block text-gray-600 text-lg">
-                Password
-              </label>
-              <input
-                id="password"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full px-4 py-3 border rounded-lg text-lg"
-                placeholder="Enter your password"
-                required
-                disabled={isProcessing}
-              />
-            </div>
-
-            <button
-              type="submit"
-              className="w-full bg-[#0070ba] text-white py-4 rounded-full text-lg font-semibold hover:bg-[#003087] transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
-              disabled={isProcessing || isLoading}
-            >
-              {isProcessing ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Processing...
-                </>
-              ) : (
-                "Pay"
-              )}
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setShowPayPalForm(false)}
-              className="w-full text-[#0070ba] hover:underline"
-              disabled={isProcessing}
-            >
-              Cancel
-            </button>
-          </form>
+      <form onSubmit={handleAmountSubmit} className="space-y-6">
+        <div>
+          <label htmlFor="amount" className="block text-sm font-medium text-gray-700">
+            Amount (₹)
+          </label>
+          <input
+            id="amount"
+            type="number"
+            value={amount}
+            onChange={(e) => setAmount(e.target.value)}
+            className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+            placeholder="Enter amount"
+            required
+          />
         </div>
-      </Card>
+        <button
+          type="submit"
+          className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+        >
+          Continue
+        </button>
+      </form>
     );
   }
 
   return (
-    <Card className="w-full max-w-md p-8">
-      <div className="space-y-6">
-        <div className="text-center space-y-2">
-          <h2 className="text-2xl font-bold">Add Funds</h2>
-          <p className="text-gray-500">Enter amount to add to your account</p>
+    <div className="max-w-md mx-auto">
+      <form onSubmit={handlePayment} className="space-y-6">
+        <div>
+          <label htmlFor="amount" className="block text-lg font-medium text-gray-700 mb-2">
+            Amount to Pay: ₹{amount}
+          </label>
         </div>
 
-        <form onSubmit={handleAmountSubmit} className="space-y-6">
-          <div className="space-y-2">
-            <label htmlFor="amount" className="block text-gray-700 text-lg">
-              Amount (₹)
+        <div className="space-y-4 bg-white p-6 rounded-lg shadow">
+          <div>
+            <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
+              Email
             </label>
-            <div className="relative">
-              <span className="absolute left-4 top-3 text-gray-500 text-lg">₹</span>
-              <input
-                id="amount"
-                type="number"
-                min="1"
-                step="1"
-                value={amount}
-                onChange={(e) => setAmount(e.target.value)}
-                className="w-full pl-10 pr-4 py-3 border-2 border-blue-500 rounded-lg text-lg"
-                placeholder="1000"
-                disabled={isLoading}
-              />
-            </div>
+            <input
+              id="email"
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="w-full px-4 py-3 border rounded-lg text-lg"
+              placeholder="Enter your email"
+              required
+              disabled={isProcessing}
+            />
+          </div>
+
+          <div>
+            <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">
+              Password
+            </label>
+            <input
+              id="password"
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="w-full px-4 py-3 border rounded-lg text-lg"
+              placeholder="Enter your password"
+              required
+              disabled={isProcessing}
+            />
           </div>
 
           <button
             type="submit"
-            className="w-full bg-blue-500 text-white py-3 rounded-lg hover:bg-blue-600 transition-colors"
-            disabled={isLoading}
+            className="w-full bg-[#0070ba] text-white py-4 rounded-full text-lg font-semibold hover:bg-[#003087] transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+            disabled={isProcessing || isLoading}
           >
-            Continue to Payment
+            {isProcessing ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Processing...
+              </>
+            ) : (
+              "Pay"
+            )}
           </button>
 
           <button
             type="button"
-            onClick={onCancel}
-            className="w-full text-gray-500 hover:text-gray-700 transition-colors"
+            onClick={() => setShowPayPalForm(false)}
+            className="w-full text-[#0070ba] hover:underline"
+            disabled={isProcessing}
           >
             Cancel
           </button>
-        </form>
-      </div>
-    </Card>
+        </div>
+      </form>
+    </div>
   );
 }
