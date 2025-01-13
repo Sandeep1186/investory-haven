@@ -12,9 +12,7 @@ interface PaymentFormProps {
 
 export function PaymentForm({ onSubmit, onCancel, isLoading = false }: PaymentFormProps) {
   const [amount, setAmount] = useState("");
-  const [showPayPalForm, setShowPayPalForm] = useState(false);
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const [showConfirmation, setShowConfirmation] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const navigate = useNavigate();
 
@@ -24,27 +22,14 @@ export function PaymentForm({ onSubmit, onCancel, isLoading = false }: PaymentFo
       toast.error("Please enter a valid amount");
       return;
     }
-    setShowPayPalForm(true);
+    setShowConfirmation(true);
   };
 
   const handlePayment = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email || !password) {
-      toast.error("Please fill in all fields");
-      return;
-    }
-
     setIsProcessing(true);
+
     try {
-      const { error: signInError } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
-
-      if (signInError) {
-        throw new Error(signInError.message);
-      }
-
       await onSubmit(amount);
       toast.success("Payment completed successfully!");
       
@@ -54,13 +39,13 @@ export function PaymentForm({ onSubmit, onCancel, isLoading = false }: PaymentFo
       }, 1500);
     } catch (error: any) {
       toast.error(error.message || "Payment failed");
-      setShowPayPalForm(false);
+      setShowConfirmation(false);
     } finally {
       setIsProcessing(false);
     }
   };
 
-  if (!showPayPalForm) {
+  if (!showConfirmation) {
     return (
       <form onSubmit={handleAmountSubmit} className="space-y-6">
         <div>
@@ -106,38 +91,6 @@ export function PaymentForm({ onSubmit, onCancel, isLoading = false }: PaymentFo
         </div>
 
         <div className="space-y-4 bg-white p-6 rounded-lg shadow">
-          <div>
-            <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
-              Email
-            </label>
-            <input
-              id="email"
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="w-full px-4 py-3 border rounded-lg text-lg"
-              placeholder="Enter your email"
-              required
-              disabled={isProcessing}
-            />
-          </div>
-
-          <div>
-            <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">
-              Password
-            </label>
-            <input
-              id="password"
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full px-4 py-3 border rounded-lg text-lg"
-              placeholder="Enter your password"
-              required
-              disabled={isProcessing}
-            />
-          </div>
-
           <button
             type="submit"
             className="w-full bg-[#0070ba] text-white py-4 rounded-full text-lg font-semibold hover:bg-[#003087] transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
@@ -149,13 +102,13 @@ export function PaymentForm({ onSubmit, onCancel, isLoading = false }: PaymentFo
                 Processing...
               </>
             ) : (
-              "Pay"
+              "Confirm Payment"
             )}
           </button>
 
           <button
             type="button"
-            onClick={() => setShowPayPalForm(false)}
+            onClick={() => setShowConfirmation(false)}
             className="w-full text-[#0070ba] hover:underline"
             disabled={isProcessing}
           >
