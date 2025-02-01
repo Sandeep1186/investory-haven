@@ -5,7 +5,11 @@ import { MarketItemDetails } from "../market/MarketItemDetails";
 import { SellDialog } from "./SellDialog";
 import { BalanceDisplay } from "./BalanceDisplay";
 import { InvestmentList } from "./InvestmentList";
+import { InvestmentInsights } from "./InvestmentInsights";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { Button } from "@/components/ui/button";
+import { Download } from "lucide-react";
+import { generateInvestmentReport } from "@/utils/generatePDF";
 
 export function PortfolioSection() {
   const [selectedSymbol, setSelectedSymbol] = useState<string | null>(null);
@@ -118,13 +122,12 @@ export function PortfolioSection() {
 
       if (updateError) throw updateError;
 
-      // Invalidate all relevant queries to trigger a refresh
+      // Invalidate queries
       queryClient.invalidateQueries({ queryKey: ['investments'] });
       queryClient.invalidateQueries({ queryKey: ['profile'] });
       queryClient.invalidateQueries({ queryKey: ['marketData'] });
 
       toast.success(`Successfully sold ${quantity} units of ${selectedInvestment.symbol}`);
-      
       setShowSellDialog(false);
       setSelectedInvestment(null);
     } catch (error: any) {
@@ -133,9 +136,32 @@ export function PortfolioSection() {
     }
   };
 
+  const handleDownloadReport = () => {
+    const totalValue = investments.reduce((total, investment) => {
+      const currentPrice = marketData[investment.symbol]?.price || investment.purchase_price;
+      return total + (currentPrice * investment.quantity);
+    }, 0);
+
+    generateInvestmentReport(investments, marketData, totalValue);
+  };
+
   return (
     <div className="space-y-6">
-      <BalanceDisplay balance={profile?.balance || 0} />
+      <div className="flex justify-between items-start">
+        <BalanceDisplay balance={profile?.balance || 0} />
+        <Button 
+          onClick={handleDownloadReport}
+          className="flex items-center gap-2"
+        >
+          <Download className="h-4 w-4" />
+          Download Report
+        </Button>
+      </div>
+
+      <InvestmentInsights 
+        investments={investments} 
+        marketData={marketData} 
+      />
       
       <InvestmentList
         investments={investments}
