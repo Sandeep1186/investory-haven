@@ -38,7 +38,10 @@ export function SellDialog({
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
+    <Dialog open={isOpen} onOpenChange={() => {
+      onClose();
+      setQuantity("");
+    }}>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Sell Investment</DialogTitle>
@@ -63,7 +66,14 @@ export function SellDialog({
             />
           </div>
           <div className="flex justify-end space-x-2">
-            <Button variant="outline" onClick={onClose} type="button">
+            <Button 
+              variant="outline" 
+              type="button"
+              onClick={() => {
+                onClose();
+                setQuantity("");
+              }}
+            >
               Cancel
             </Button>
             <Button 
