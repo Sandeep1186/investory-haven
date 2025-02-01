@@ -5,15 +5,20 @@ import { Tables } from "@/integrations/supabase/types";
 import { useQuery } from "@tanstack/react-query";
 import { Card } from "@/components/ui/card";
 import { toast } from "sonner";
-import { TrendingUp, TrendingDown, ArrowLeft } from "lucide-react";
+import { TrendingUp, TrendingDown, ArrowLeft, Search, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
+import { Input } from "@/components/ui/input";
 
 type MarketData = Tables<"market_data">;
+type WatchlistItem = Tables<"watchlist">;
 
 export default function Watchlist() {
   const navigate = useNavigate();
   const [realtimeData, setRealtimeData] = useState<MarketData[]>([]);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [searchResults, setSearchResults] = useState<MarketData[]>([]);
+  const [watchlist, setWatchlist] = useState<WatchlistItem[]>([]);
 
   const { data: initialMarketData } = useQuery({
     queryKey: ['market-data'],
@@ -31,6 +36,96 @@ export default function Watchlist() {
       return data as MarketData[];
     }
   });
+
+  const { data: watchlistData } = useQuery({
+    queryKey: ['watchlist'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('watchlist')
+        .select('*')
+        .eq('user_id', (await supabase.auth.getUser()).data.user?.id);
+
+      if (error) {
+        toast.error("Failed to fetch watchlist");
+        throw error;
+      }
+
+      return data as WatchlistItem[];
+    }
+  });
+
+  useEffect(() => {
+    if (watchlistData) {
+      setWatchlist(watchlistData);
+    }
+  }, [watchlistData]);
+
+  const handleSearch = async (term: string) => {
+    setSearchTerm(term);
+    if (term.length > 0) {
+      const { data, error } = await supabase
+        .from('market_data')
+        .select('*')
+        .ilike('symbol', `%${term}%`)
+        .limit(5);
+
+      if (error) {
+        toast.error("Search failed");
+        return;
+      }
+
+      setSearchResults(data as MarketData[]);
+    } else {
+      setSearchResults([]);
+    }
+  };
+
+  const addToWatchlist = async (item: MarketData) => {
+    const user = (await supabase.auth.getUser()).data.user;
+    if (!user) {
+      toast.error("Please sign in to add to watchlist");
+      return;
+    }
+
+    const { error } = await supabase
+      .from('watchlist')
+      .insert({
+        symbol: item.symbol,
+        name: item.name,
+        price: item.price,
+        change: item.change,
+        historical_data: [],
+        user_id: user.id
+      });
+
+    if (error) {
+      if (error.code === '23505') {
+        toast.error("This item is already in your watchlist");
+      } else {
+        toast.error("Failed to add to watchlist");
+      }
+      return;
+    }
+
+    toast.success("Added to watchlist");
+    setSearchTerm("");
+    setSearchResults([]);
+  };
+
+  const removeFromWatchlist = async (symbol: string) => {
+    const { error } = await supabase
+      .from('watchlist')
+      .delete()
+      .eq('symbol', symbol);
+
+    if (error) {
+      toast.error("Failed to remove from watchlist");
+      return;
+    }
+
+    toast.success("Removed from watchlist");
+    setWatchlist(prev => prev.filter(item => item.symbol !== symbol));
+  };
 
   // Function to trigger market data update
   const updateMarketData = async () => {
@@ -185,7 +280,6 @@ export default function Watchlist() {
           ))}
         </div>
       </Card>
-    );
   };
 
   return (
@@ -207,6 +301,82 @@ export default function Watchlist() {
             Back to Dashboard
           </Button>
         </div>
+
+        {/* Search Section */}
+        <Card className="mb-8 p-6">
+          <div className="relative">
+            <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+            <Input
+              type="text"
+              placeholder="Search for stocks, mutual funds, or bonds..."
+              value={searchTerm}
+              onChange={(e) => handleSearch(e.target.value)}
+              className="pl-10"
+            />
+          </div>
+
+          {/* Search Results */}
+          {searchResults.length > 0 && (
+            <div className="mt-4 space-y-2">
+              {searchResults.map((result) => (
+                <div
+                  key={result.symbol}
+                  className="flex items-center justify-between p-3 bg-white rounded-lg border hover:bg-gray-50"
+                >
+                  <div>
+                    <h3 className="font-medium">{result.symbol}</h3>
+                    <p className="text-sm text-gray-500">{result.name}</p>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => addToWatchlist(result)}
+                    className="flex items-center gap-1"
+                  >
+                    <Plus className="h-4 w-4" />
+                    Add
+                  </Button>
+                </div>
+              ))}
+            </div>
+          )}
+        </Card>
+
+        {/* Watchlist Items */}
+        <Card className="mb-8 p-6">
+          <h2 className="text-xl font-semibold mb-4">Your Watchlist</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {watchlist.map((item) => (
+              <div key={item.symbol} className="p-4 bg-white rounded-lg border">
+                <div className="flex justify-between items-start">
+                  <div>
+                    <h3 className="font-medium">{item.symbol}</h3>
+                    <p className="text-sm text-gray-500">{item.name}</p>
+                  </div>
+                  <div className={`flex items-center ${item.change >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                    {item.change >= 0 ? (
+                      <TrendingUp className="h-4 w-4 mr-1" />
+                    ) : (
+                      <TrendingDown className="h-4 w-4 mr-1" />
+                    )}
+                    {item.change}%
+                  </div>
+                </div>
+                <div className="mt-2 flex justify-between items-center">
+                  <span className="text-lg font-semibold">₹{item.price.toLocaleString()}</span>
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    onClick={() => removeFromWatchlist(item.symbol)}
+                  >
+                    Remove
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </Card>
+
         <div className="space-y-8">
           {renderChart('stock')}
           {renderChart('mutual_fund')}

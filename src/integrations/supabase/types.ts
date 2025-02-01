@@ -196,6 +196,7 @@ export type Database = {
           name: string
           price: number
           symbol: string
+          user_id: string | null
         }
         Insert: {
           change: number
@@ -205,6 +206,7 @@ export type Database = {
           name: string
           price: number
           symbol: string
+          user_id?: string | null
         }
         Update: {
           change?: number
@@ -214,8 +216,17 @@ export type Database = {
           name?: string
           price?: number
           symbol?: string
+          user_id?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "watchlist_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {
