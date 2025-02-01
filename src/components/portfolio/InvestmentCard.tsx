@@ -1,10 +1,13 @@
 import { Card } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
+import { useState } from "react";
+import { AddInvestmentForm } from "../market/AddInvestmentForm";
+import { SellDialog } from "./SellDialog";
 
 interface InvestmentCardProps {
   title: string;
-  type: 'stock' | 'mutual_fund' | 'bond';  // Updated type definition
+  type: 'stock' | 'mutual_fund' | 'bond';
   investments: any[];
   marketData: { [key: string]: any };
   onSymbolClick: (symbol: string) => void;
@@ -23,11 +26,34 @@ export function InvestmentCard({
   calculateCurrentValue,
   calculateProfitLoss
 }: InvestmentCardProps) {
+  const [showBuyDialog, setShowBuyDialog] = useState(false);
+  const [showSellDialog, setShowSellDialog] = useState(false);
+  const [selectedInvestment, setSelectedInvestment] = useState<any>(null);
+  
   const filteredInvestments = investments.filter(inv => inv.type === type);
+  const formattedType = type === 'mutual_fund' ? 'mutual' : type;
+
+  const handleBuy = () => {
+    setShowBuyDialog(true);
+  };
+
+  const handleSell = (investment: any) => {
+    setSelectedInvestment(investment);
+    setShowSellDialog(true);
+  };
 
   return (
     <Card className="p-6">
-      <h3 className="text-lg font-semibold mb-4">{title}</h3>
+      <div className="flex justify-between items-center mb-4">
+        <h3 className="text-lg font-semibold">{title}</h3>
+        <Button 
+          onClick={handleBuy}
+          className="bg-blue-600 hover:bg-blue-700 text-white"
+        >
+          Buy {title}
+        </Button>
+      </div>
+
       {filteredInvestments.length > 0 ? (
         <Table>
           <TableHeader>
@@ -43,7 +69,7 @@ export function InvestmentCard({
             {filteredInvestments.map((investment) => (
               <TableRow key={investment.id}>
                 <TableCell 
-                  className="cursor-pointer" 
+                  className="cursor-pointer font-medium" 
                   onClick={() => onSymbolClick(investment.symbol)}
                 >
                   {investment.symbol}
@@ -54,21 +80,56 @@ export function InvestmentCard({
                   {calculateProfitLoss(investment).toFixed(2)}%
                 </TableCell>
                 <TableCell>
-                  <Button 
-                    variant="destructive" 
-                    size="sm"
-                    onClick={() => onSellClick(investment)}
-                  >
-                    Sell
-                  </Button>
+                  <div className="flex gap-2">
+                    <Button 
+                      variant="destructive" 
+                      size="sm"
+                      onClick={() => handleSell(investment)}
+                    >
+                      Sell
+                    </Button>
+                    <Button 
+                      className="bg-blue-600 hover:bg-blue-700"
+                      size="sm"
+                      onClick={handleBuy}
+                    >
+                      Buy
+                    </Button>
+                  </div>
                 </TableCell>
               </TableRow>
             ))}
           </TableBody>
         </Table>
       ) : (
-        <div className="text-center py-4 text-gray-500">No {title.toLowerCase()} in portfolio</div>
+        <div className="text-center py-8 text-gray-500">
+          No {title.toLowerCase()} in portfolio
+        </div>
       )}
+
+      <AddInvestmentForm
+        isOpen={showBuyDialog}
+        onClose={() => setShowBuyDialog(false)}
+        type={formattedType}
+        title={`Buy ${title}`}
+      />
+
+      <SellDialog
+        isOpen={showSellDialog}
+        onClose={() => {
+          setShowSellDialog(false);
+          setSelectedInvestment(null);
+        }}
+        investment={selectedInvestment}
+        currentValue={selectedInvestment ? calculateCurrentValue(selectedInvestment) : 0}
+        onConfirm={() => {
+          if (selectedInvestment) {
+            onSellClick(selectedInvestment);
+          }
+          setShowSellDialog(false);
+          setSelectedInvestment(null);
+        }}
+      />
     </Card>
   );
 }

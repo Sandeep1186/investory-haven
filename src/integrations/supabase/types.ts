@@ -166,6 +166,57 @@ export type Database = {
         }
         Relationships: []
       }
+      todos: {
+        Row: {
+          completed: boolean | null
+          created_at: string
+          id: number
+          task: string | null
+        }
+        Insert: {
+          completed?: boolean | null
+          created_at?: string
+          id?: number
+          task?: string | null
+        }
+        Update: {
+          completed?: boolean | null
+          created_at?: string
+          id?: number
+          task?: string | null
+        }
+        Relationships: []
+      }
+      watchlist: {
+        Row: {
+          change: number
+          created_at: string | null
+          historical_data: Json
+          id: string
+          name: string
+          price: number
+          symbol: string
+        }
+        Insert: {
+          change: number
+          created_at?: string | null
+          historical_data: Json
+          id?: string
+          name: string
+          price: number
+          symbol: string
+        }
+        Update: {
+          change?: number
+          created_at?: string | null
+          historical_data?: Json
+          id?: string
+          name?: string
+          price?: number
+          symbol?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
