@@ -44,8 +44,13 @@ export function MarketOverview() {
   });
 
   const filteredData = selectedType && selectedType !== 'all'
-    ? marketData.filter((item) => item.type.toLowerCase() === selectedType.toLowerCase())
+    ? marketData.filter((item) => item.type?.toLowerCase() === selectedType.toLowerCase())
     : marketData;
+
+  const formatType = (type: string | null | undefined): string => {
+    if (!type) return '';
+    return type.replace('_', ' ');
+  };
 
   return (
     <>
@@ -89,7 +94,7 @@ export function MarketOverview() {
                     {item.name}
                   </div>
                 </TableCell>
-                <TableCell className="capitalize">{item.type.replace('_', ' ')}</TableCell>
+                <TableCell className="capitalize">{formatType(item.type)}</TableCell>
                 <TableCell>₹{item.price.toFixed(2)}</TableCell>
                 <TableCell className={item.change >= 0 ? 'text-green-500' : 'text-red-500'}>
                   {item.change >= 0 ? '+' : ''}{item.change}%
@@ -125,7 +130,7 @@ export function MarketOverview() {
                 <div>{selectedItem.symbol}</div>
                 
                 <div className="font-medium">Type</div>
-                <div className="capitalize">{selectedItem.type.replace('_', ' ')}</div>
+                <div className="capitalize">{formatType(selectedItem.type)}</div>
                 
                 <div className="font-medium">Price</div>
                 <div>₹{selectedItem.price.toFixed(2)}</div>
@@ -136,7 +141,7 @@ export function MarketOverview() {
                 </div>
                 
                 <div className="font-medium">Risk Level</div>
-                <div className="capitalize">{selectedItem.risk_level?.toLowerCase()}</div>
+                <div className="capitalize">{selectedItem.risk_level?.toLowerCase() || 'N/A'}</div>
                 
                 <div className="font-medium">Min Investment</div>
                 <div>₹{selectedItem.minimum_investment?.toFixed(2) || 0}</div>
