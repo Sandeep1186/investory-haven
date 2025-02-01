@@ -6,13 +6,15 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { useState } from "react";
 
 interface SellDialogProps {
   isOpen: boolean;
   onClose: () => void;
   investment: any;
   currentValue: number;
-  onConfirm: () => void;
+  onConfirm: (quantity: number) => void;
 }
 
 export function SellDialog({
@@ -22,7 +24,18 @@ export function SellDialog({
   currentValue,
   onConfirm,
 }: SellDialogProps) {
+  const [quantity, setQuantity] = useState("");
+
   if (!investment) return null;
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const sellQuantity = Number(quantity);
+    if (sellQuantity > 0 && sellQuantity <= investment.quantity) {
+      onConfirm(sellQuantity);
+      setQuantity("");
+    }
+  };
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -30,18 +43,38 @@ export function SellDialog({
         <DialogHeader>
           <DialogTitle>Sell Investment</DialogTitle>
           <DialogDescription>
-            Are you sure you want to sell {investment.quantity} units of {investment.symbol}?
-            Current value: ₹{currentValue.toFixed(2)}
+            You have {investment.quantity} units of {investment.symbol}.
+            Current value per unit: ₹{(currentValue / investment.quantity).toFixed(2)}
           </DialogDescription>
         </DialogHeader>
-        <div className="flex justify-end space-x-2">
-          <Button variant="outline" onClick={onClose}>
-            Cancel
-          </Button>
-          <Button variant="destructive" onClick={onConfirm}>
-            Confirm Sell
-          </Button>
-        </div>
+        <form onSubmit={handleSubmit} className="grid gap-4">
+          <div className="grid gap-2">
+            <label htmlFor="quantity">Quantity to Sell</label>
+            <Input
+              id="quantity"
+              type="number"
+              min="1"
+              max={investment.quantity}
+              step="1"
+              value={quantity}
+              onChange={(e) => setQuantity(e.target.value)}
+              placeholder={`Enter quantity (max: ${investment.quantity})`}
+              required
+            />
+          </div>
+          <div className="flex justify-end space-x-2">
+            <Button variant="outline" onClick={onClose} type="button">
+              Cancel
+            </Button>
+            <Button 
+              variant="destructive" 
+              type="submit"
+              disabled={!quantity || Number(quantity) > investment.quantity}
+            >
+              Confirm Sell
+            </Button>
+          </div>
+        </form>
       </DialogContent>
     </Dialog>
   );

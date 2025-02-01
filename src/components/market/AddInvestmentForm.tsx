@@ -79,20 +79,50 @@ export function AddInvestmentForm({ isOpen, onClose, type, title, symbol: initia
         throw new Error(`Insufficient funds. You need ₹${totalAmount} but have ₹${profile.balance}`);
       }
 
-      // Create the investment
-      const { error: investmentError } = await supabase
+      // Check if user already has this investment
+      const { data: existingInvestment, error: existingError } = await supabase
         .from("investments")
-        .insert({
-          symbol: symbol.toUpperCase(),
-          type: type === "mutual" ? "mutual_fund" : type,
-          quantity: Number(quantity),
-          purchase_price: marketData.price,
-          user_id: user.id
-        });
+        .select("*")
+        .eq("symbol", symbol.toUpperCase())
+        .eq("type", type === "mutual" ? "mutual_fund" : type)
+        .eq("user_id", user.id)
+        .eq("sold", false)
+        .maybeSingle();
 
-      if (investmentError) {
-        console.error("Investment error:", investmentError);
-        throw investmentError;
+      if (existingError) {
+        console.error("Error checking existing investment:", existingError);
+        throw existingError;
+      }
+
+      if (existingInvestment) {
+        // Update existing investment
+        const { error: updateError } = await supabase
+          .from("investments")
+          .update({
+            quantity: existingInvestment.quantity + Number(quantity)
+          })
+          .eq("id", existingInvestment.id);
+
+        if (updateError) {
+          console.error("Update error:", updateError);
+          throw updateError;
+        }
+      } else {
+        // Create new investment
+        const { error: investmentError } = await supabase
+          .from("investments")
+          .insert({
+            symbol: symbol.toUpperCase(),
+            type: type === "mutual" ? "mutual_fund" : type,
+            quantity: Number(quantity),
+            purchase_price: marketData.price,
+            user_id: user.id
+          });
+
+        if (investmentError) {
+          console.error("Investment error:", investmentError);
+          throw investmentError;
+        }
       }
 
       // Update user's balance

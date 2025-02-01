@@ -75,27 +75,39 @@ export function PortfolioSection() {
     return ((currentValue - purchaseValue) / purchaseValue) * 100;
   };
 
-  const handleSell = async () => {
+  const handleSell = async (quantity: number) => {
     if (!selectedInvestment) return;
 
     try {
       const currentPrice = marketData[selectedInvestment.symbol]?.price || selectedInvestment.purchase_price;
-      const saleAmount = currentPrice * selectedInvestment.quantity;
+      const saleAmount = currentPrice * quantity;
 
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Not authenticated");
 
-      // Update investment as sold
-      const { error: investmentError } = await supabase
-        .from("investments")
-        .update({
-          sold: true,
-          sold_at: new Date().toISOString(),
-          sold_price: currentPrice
-        })
-        .eq('id', selectedInvestment.id);
+      if (quantity === selectedInvestment.quantity) {
+        // Sell entire investment
+        const { error: investmentError } = await supabase
+          .from("investments")
+          .update({
+            sold: true,
+            sold_at: new Date().toISOString(),
+            sold_price: currentPrice
+          })
+          .eq('id', selectedInvestment.id);
 
-      if (investmentError) throw investmentError;
+        if (investmentError) throw investmentError;
+      } else {
+        // Partial sell - reduce quantity
+        const { error: investmentError } = await supabase
+          .from("investments")
+          .update({
+            quantity: selectedInvestment.quantity - quantity
+          })
+          .eq('id', selectedInvestment.id);
+
+        if (investmentError) throw investmentError;
+      }
 
       // Update user's balance
       const newBalance = (profile?.balance || 0) + saleAmount;
@@ -111,7 +123,7 @@ export function PortfolioSection() {
       queryClient.invalidateQueries({ queryKey: ['profile'] });
       queryClient.invalidateQueries({ queryKey: ['marketData'] });
 
-      toast.success("Investment sold successfully");
+      toast.success(`Successfully sold ${quantity} units of ${selectedInvestment.symbol}`);
       
       setShowSellDialog(false);
       setSelectedInvestment(null);
