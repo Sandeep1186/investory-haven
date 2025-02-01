@@ -280,6 +280,7 @@ export default function Watchlist() {
           ))}
         </div>
       </Card>
+    );
   };
 
   return (
