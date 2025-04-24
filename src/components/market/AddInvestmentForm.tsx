@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import {
   Dialog,
@@ -20,6 +21,25 @@ interface AddInvestmentFormProps {
   symbol?: string | null;
 }
 
+interface MarketItem {
+  symbol: string;
+  type: string;
+  price: number;
+  name: string;
+}
+
+interface Profile {
+  id: string;
+  balance: number;
+}
+
+interface Investment {
+  id: string;
+  symbol: string;
+  quantity: number;
+  type: string;
+}
+
 export function AddInvestmentForm({ isOpen, onClose, type, title, symbol: initialSymbol }: AddInvestmentFormProps) {
   const [symbol, setSymbol] = useState(initialSymbol || "");
   const [quantity, setQuantity] = useState("");
@@ -35,7 +55,6 @@ export function AddInvestmentForm({ isOpen, onClose, type, title, symbol: initia
     setLoading(true);
 
     try {
-      // First get the market data for the symbol
       const { data: marketData, error: marketError } = await supabase
         .from("market_data")
         .select("*")
@@ -47,39 +66,29 @@ export function AddInvestmentForm({ isOpen, onClose, type, title, symbol: initia
         throw new Error("Invalid symbol");
       }
 
-      // Calculate total investment amount
-      const totalAmount = Number(quantity) * marketData.price;
-      console.log("Total amount to invest:", totalAmount);
+      const marketItem = marketData as MarketItem;
+      const totalAmount = Number(quantity) * marketItem.price;
 
-      // Get current user's ID
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Not authenticated");
 
-      // Get user's current balance
-      const { data: profile, error: profileError } = await supabase
+      const { data: profileData, error: profileError } = await supabase
         .from("profiles")
-        .select("balance")
+        .select("*")
         .eq("id", user.id)
-        .maybeSingle();
+        .single();
 
       if (profileError) {
         console.error("Profile error:", profileError);
         throw new Error("Couldn't fetch user balance");
       }
 
-      if (!profile) {
-        console.error("No profile found");
-        throw new Error("User profile not found");
-      }
-
-      console.log("Current balance:", profile.balance);
-      console.log("Required amount:", totalAmount);
-
+      const profile = profileData as Profile;
+      
       if (profile.balance < totalAmount) {
         throw new Error(`Insufficient funds. You need ₹${totalAmount} but have ₹${profile.balance}`);
       }
 
-      // Check if user already has this investment
       const { data: existingInvestment, error: existingError } = await supabase
         .from("investments")
         .select("*")
@@ -87,35 +96,35 @@ export function AddInvestmentForm({ isOpen, onClose, type, title, symbol: initia
         .eq("type", type === "mutual" ? "mutual_fund" : type)
         .eq("user_id", user.id)
         .eq("sold", false)
-        .maybeSingle();
+        .single();
 
-      if (existingError) {
+      if (existingError && existingError.code !== 'PGRST116') {
         console.error("Error checking existing investment:", existingError);
         throw existingError;
       }
 
-      if (existingInvestment) {
-        // Update existing investment
+      const investment = existingInvestment as Investment | null;
+
+      if (investment) {
         const { error: updateError } = await supabase
           .from("investments")
           .update({
-            quantity: existingInvestment.quantity + Number(quantity)
+            quantity: investment.quantity + Number(quantity)
           })
-          .eq("id", existingInvestment.id);
+          .eq("id", investment.id);
 
         if (updateError) {
           console.error("Update error:", updateError);
           throw updateError;
         }
       } else {
-        // Create new investment
         const { error: investmentError } = await supabase
           .from("investments")
           .insert({
             symbol: symbol.toUpperCase(),
             type: type === "mutual" ? "mutual_fund" : type,
             quantity: Number(quantity),
-            purchase_price: marketData.price,
+            purchase_price: marketItem.price,
             user_id: user.id
           });
 
@@ -125,7 +134,6 @@ export function AddInvestmentForm({ isOpen, onClose, type, title, symbol: initia
         }
       }
 
-      // Update user's balance
       const newBalance = profile.balance - totalAmount;
       const { error: updateError } = await supabase
         .from("profiles")
@@ -137,7 +145,6 @@ export function AddInvestmentForm({ isOpen, onClose, type, title, symbol: initia
         throw updateError;
       }
 
-      // Invalidate all relevant queries to trigger a refresh
       queryClient.invalidateQueries({ queryKey: ['investments'] });
       queryClient.invalidateQueries({ queryKey: ['profile'] });
       queryClient.invalidateQueries({ queryKey: ['marketData'] });

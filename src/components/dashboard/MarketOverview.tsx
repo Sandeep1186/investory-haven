@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Card } from "@/components/ui/card";
 import {
@@ -26,9 +27,21 @@ import { Button } from "@/components/ui/button";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 
+interface MarketItem {
+  id: string;
+  symbol: string;
+  name: string;
+  type: 'stock' | 'mutual_fund' | 'bond';
+  price: number;
+  change: number;
+  risk_level?: string;
+  minimum_investment?: number;
+  description?: string;
+}
+
 export function MarketOverview() {
   const [selectedType, setSelectedType] = useState<string | null>(null);
-  const [selectedItem, setSelectedItem] = useState<any>(null);
+  const [selectedItem, setSelectedItem] = useState<MarketItem | null>(null);
 
   const { data: marketData = [] } = useQuery({
     queryKey: ['marketData'],
@@ -39,7 +52,7 @@ export function MarketOverview() {
         .order('name');
 
       if (error) throw error;
-      return data || [];
+      return data as MarketItem[];
     }
   });
 
