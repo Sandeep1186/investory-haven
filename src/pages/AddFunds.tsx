@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -22,8 +23,45 @@ export default function AddFunds() {
     }
   });
 
+  // Fetch the user's portfolio
+  const { data: portfolio } = useQuery({
+    queryKey: ['portfolio'],
+    enabled: !!user,
+    queryFn: async () => {
+      if (!user) return null;
+      
+      const { data, error } = await supabase
+        .from("portfolios")
+        .select("*")
+        .eq("user_id", user.id)
+        .single();
+      
+      if (error) {
+        // If portfolio doesn't exist, create one
+        if (error.code === 'PGRST116') {
+          const { data: newPortfolio, error: createError } = await supabase
+            .from("portfolios")
+            .insert({
+              user_id: user.id,
+              name: "Default Portfolio",
+              cash_balance: 0,
+              total_value: 0
+            })
+            .select()
+            .single();
+            
+          if (createError) throw createError;
+          return newPortfolio;
+        }
+        throw error;
+      }
+      
+      return data;
+    }
+  });
+
   const handleAddFunds = async (amount: string) => {
-    if (!user) {
+    if (!user || !portfolio) {
       toast.error("Please sign in to continue");
       navigate("/signin");
       return;
@@ -32,33 +70,43 @@ export default function AddFunds() {
     setIsLoading(true);
 
     try {
-      // Create a payment record
-      const { data: payment, error: paymentError } = await supabase
-        .from('payments')
+      // Create a trade record for funds deposit
+      const { error: tradeError } = await supabase
+        .from("trades")
         .insert([
           {
-            user_id: user.id,
-            amount: Number(amount),
-            status: 'completed'
+            portfolio_id: portfolio.id,
+            symbol: "CASH",
+            type: "deposit",
+            quantity: 1,
+            price: Number(amount),
+            total_amount: Number(amount),
+            status: "completed"
           }
-        ])
-        .select()
-        .single();
+        ]);
 
-      if (paymentError) throw paymentError;
+      if (tradeError) throw tradeError;
 
-      // Update user balance
-      const { error: balanceError } = await supabase.rpc('increment_balance', {
-        increment_amount: Number(amount)
-      });
+      // Update portfolio balance
+      const newBalance = (portfolio.cash_balance || 0) + Number(amount);
+      const { error: updateError } = await supabase
+        .from("portfolios")
+        .update({
+          cash_balance: newBalance
+        })
+        .eq("id", portfolio.id);
 
-      if (balanceError) throw balanceError;
+      if (updateError) throw updateError;
 
-      // Invalidate queries to trigger a refresh of the user's balance
-      await queryClient.invalidateQueries({ queryKey: ['profile'] });
+      // Invalidate queries to trigger a refresh of the user's portfolio
+      await queryClient.invalidateQueries({ queryKey: ['portfolio'] });
+      await queryClient.invalidateQueries({ queryKey: ['trades'] });
+      
+      toast.success(`Successfully added ₹${amount} to your account`);
       
     } catch (error: any) {
       console.error("Payment error:", error);
+      toast.error(error.message || "Failed to add funds");
       throw error;
     } finally {
       setIsLoading(false);

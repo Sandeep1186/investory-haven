@@ -28,12 +28,11 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 
 interface MarketItem {
-  id?: string;
   symbol: string;
   name: string;
   type: 'stock' | 'mutual_fund' | 'bond';
-  price: number;
-  change: number;
+  current_price: number;
+  change_percent: number;
   risk_level?: string;
   minimum_investment?: number;
   description?: string;
@@ -52,14 +51,16 @@ export function MarketOverview() {
         .order('name');
 
       if (error) throw error;
-      // Transform the data to match MarketItem interface
+      
+      // Transform the data to match MarketItem interface and add any missing fields
       return data.map(item => ({
-        symbol: item.symbol,
-        name: item.name,
-        type: 'stock', // We'll need to update this when we have the type field
-        price: item.current_price,
-        change: item.change_percent || 0,
-        risk_level: 'MEDIUM', // Default value until we have this field
+        ...item,
+        // Infer type from symbol prefix if not available
+        type: item.symbol.startsWith('G') ? 'bond' : 
+              item.symbol.startsWith('S') ? 'mutual_fund' : 'stock',
+        // Infer risk level from type if not available
+        risk_level: item.symbol.startsWith('G') ? 'LOW' : 
+                   item.symbol.startsWith('S') ? 'MEDIUM' : 'HIGH',
         minimum_investment: 100, // Default value until we have this field
       })) as MarketItem[];
     }
@@ -110,16 +111,16 @@ export function MarketOverview() {
               <TableRow key={item.symbol}>
                 <TableCell className="font-medium">
                   <div className="flex items-center gap-2">
-                    <span className={`${item.change >= 0 ? 'text-green-500' : 'text-red-500'}`}>
-                      {item.change >= 0 ? '↗' : '↘'}
+                    <span className={`${item.change_percent >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                      {item.change_percent >= 0 ? '↗' : '↘'}
                     </span>
                     {item.name}
                   </div>
                 </TableCell>
                 <TableCell className="capitalize">{formatType(item.type)}</TableCell>
-                <TableCell>₹{item.price.toFixed(2)}</TableCell>
-                <TableCell className={item.change >= 0 ? 'text-green-500' : 'text-red-500'}>
-                  {item.change >= 0 ? '+' : ''}{item.change}%
+                <TableCell>₹{item.current_price.toFixed(2)}</TableCell>
+                <TableCell className={item.change_percent >= 0 ? 'text-green-500' : 'text-red-500'}>
+                  {item.change_percent >= 0 ? '+' : ''}{item.change_percent}%
                 </TableCell>
                 <TableCell>
                   <Button 
@@ -155,11 +156,11 @@ export function MarketOverview() {
                 <div className="capitalize">{formatType(selectedItem.type)}</div>
                 
                 <div className="font-medium">Price</div>
-                <div>₹{selectedItem.price.toFixed(2)}</div>
+                <div>₹{selectedItem.current_price.toFixed(2)}</div>
                 
                 <div className="font-medium">Change</div>
-                <div className={selectedItem.change >= 0 ? 'text-green-500' : 'text-red-500'}>
-                  {selectedItem.change >= 0 ? '+' : ''}{selectedItem.change}%
+                <div className={selectedItem.change_percent >= 0 ? 'text-green-500' : 'text-red-500'}>
+                  {selectedItem.change_percent >= 0 ? '+' : ''}{selectedItem.change_percent}%
                 </div>
                 
                 <div className="font-medium">Risk Level</div>

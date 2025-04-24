@@ -1,3 +1,4 @@
+
 import { LineChart, Grid, List, Search } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
@@ -45,12 +46,12 @@ export default function Dashboard() {
     }
   });
 
-  const { data: profile, refetch: refetchProfile } = useQuery({
-    queryKey: ['profile'],
+  const { data: profile } = useQuery({
+    queryKey: ['user_profile'],
     enabled: !!userData,
     queryFn: async () => {
       const { data } = await supabase
-        .from("profiles")
+        .from("users")
         .select("*")
         .eq("id", userData!.id)
         .single();
@@ -59,14 +60,52 @@ export default function Dashboard() {
     }
   });
 
-  const { data: investments = [] } = useQuery({
-    queryKey: ['investments'],
+  const { data: portfolio } = useQuery({
+    queryKey: ['portfolio'],
     enabled: !!userData,
     queryFn: async () => {
+      if (!userData) return null;
+      
       const { data, error } = await supabase
-        .from("investments")
+        .from("portfolios")
         .select("*")
-        .eq('sold', false)
+        .eq("user_id", userData.id)
+        .single();
+      
+      if (error) {
+        // If portfolio doesn't exist, create one
+        if (error.code === 'PGRST116') {
+          const { data: newPortfolio, error: createError } = await supabase
+            .from("portfolios")
+            .insert({
+              user_id: userData.id,
+              name: "Default Portfolio",
+              cash_balance: 0,
+              total_value: 0
+            })
+            .select()
+            .single();
+            
+          if (createError) throw createError;
+          return newPortfolio;
+        }
+        throw error;
+      }
+      
+      return data;
+    }
+  });
+
+  const { data: holdings = [] } = useQuery({
+    queryKey: ['portfolio_holdings'],
+    enabled: !!portfolio?.id,
+    queryFn: async () => {
+      if (!portfolio) return [];
+      
+      const { data, error } = await supabase
+        .from("portfolio_holdings")
+        .select("*")
+        .eq("portfolio_id", portfolio.id)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
@@ -89,9 +128,10 @@ export default function Dashboard() {
 
   // Calculate total investments value
   const calculateTotalInvestments = () => {
-    return investments.reduce((total, investment) => {
-      const currentPrice = marketData.find(item => item.symbol === investment.symbol)?.price || investment.purchase_price;
-      return total + (currentPrice * investment.quantity);
+    return holdings.reduce((total, holding) => {
+      const marketItem = marketData.find(item => item.symbol === holding.symbol);
+      const currentPrice = marketItem ? marketItem.current_price : holding.average_cost;
+      return total + (currentPrice * holding.quantity);
     }, 0);
   };
 
@@ -102,8 +142,7 @@ export default function Dashboard() {
   const filteredResults = searchQuery
     ? marketData.filter(item => 
         item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        item.symbol.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        item.type.toLowerCase().includes(searchQuery.toLowerCase())
+        item.symbol.toLowerCase().includes(searchQuery.toLowerCase())
       )
     : [];
 
@@ -142,26 +181,26 @@ export default function Dashboard() {
             <TableHeader>
               <TableRow>
                 <TableHead>NAME</TableHead>
-                <TableHead>TYPE</TableHead>
+                <TableHead>SYMBOL</TableHead>
                 <TableHead>PRICE</TableHead>
                 <TableHead>CHANGE</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {filteredResults.map((item) => (
-                <TableRow key={item.id}>
+                <TableRow key={item.symbol}>
                   <TableCell className="font-medium">
                     <div className="flex items-center gap-2">
-                      <span className={`${item.change >= 0 ? 'text-green-500' : 'text-red-500'}`}>
-                        {item.change >= 0 ? '↗' : '↘'}
+                      <span className={`${item.change_percent >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                        {item.change_percent >= 0 ? '↗' : '↘'}
                       </span>
                       {item.name}
                     </div>
                   </TableCell>
-                  <TableCell className="capitalize">{item.type.replace('_', ' ')}</TableCell>
-                  <TableCell>₹{item.price.toFixed(2)}</TableCell>
-                  <TableCell className={item.change >= 0 ? 'text-green-500' : 'text-red-500'}>
-                    {item.change >= 0 ? '+' : ''}{item.change}%
+                  <TableCell>{item.symbol}</TableCell>
+                  <TableCell>₹{item.current_price?.toFixed(2)}</TableCell>
+                  <TableCell className={item.change_percent >= 0 ? 'text-green-500' : 'text-red-500'}>
+                    {item.change_percent >= 0 ? '+' : ''}{item.change_percent}%
                   </TableCell>
                 </TableRow>
               ))}
@@ -231,7 +270,7 @@ export default function Dashboard() {
                   </DropdownMenu>
                 </div>
                 <h3 className="text-2xl font-bold mt-1">₹{calculateTotalInvestments().toLocaleString()}</h3>
-                <p className="text-sm text-gray-500 mt-1">Active Positions: {investments.length}</p>
+                <p className="text-sm text-gray-500 mt-1">Active Positions: {holdings.length}</p>
               </div>
               <LineChart className="h-8 w-8 text-blue-500" />
             </div>

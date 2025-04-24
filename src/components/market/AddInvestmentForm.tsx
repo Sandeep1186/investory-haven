@@ -24,19 +24,18 @@ interface AddInvestmentFormProps {
 interface MarketItem {
   symbol: string;
   type: string;
-  price: number;
+  current_price: number;
   name: string;
 }
 
 interface User {
   id: string;
-  balance?: number;
-  full_name?: string;
   address?: string;
   bio?: string;
+  created_at?: string;
+  full_name?: string;
   phone_number?: string;
   preferences?: any;
-  created_at?: string;
   updated_at?: string;
 }
 
@@ -68,39 +67,37 @@ export function AddInvestmentForm({ isOpen, onClose, type, title, symbol: initia
       const marketItem: MarketItem = {
         symbol: marketData.symbol,
         type: type,
-        price: marketData.current_price,
+        current_price: marketData.current_price,
         name: marketData.name
       };
 
-      const totalAmount = Number(quantity) * marketItem.price;
+      const totalAmount = Number(quantity) * marketItem.current_price;
 
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Not authenticated");
 
-      const { data: userData, error: profileError } = await supabase
-        .from("users")
+      // Fetch user's portfolio to get cash balance
+      const { data: portfolioData, error: portfolioError } = await supabase
+        .from("portfolios")
         .select("*")
-        .eq("id", user.id)
+        .eq("user_id", user.id)
         .single();
 
-      if (profileError) {
-        console.error("Profile error:", profileError);
-        throw new Error("Couldn't fetch user balance");
+      if (portfolioError) {
+        console.error("Portfolio error:", portfolioError);
+        throw new Error("Couldn't fetch portfolio balance");
       }
 
-      // Cast userData to User type
-      const userProfile = userData as User;
-      
-      if (!userProfile.balance || userProfile.balance < totalAmount) {
-        const currentBalance = userProfile.balance || 0;
-        throw new Error(`Insufficient funds. You need ₹${totalAmount} but have ₹${currentBalance}`);
+      const portfolio = portfolioData;
+      if (!portfolio.cash_balance || portfolio.cash_balance < totalAmount) {
+        throw new Error(`Insufficient funds. You need ₹${totalAmount} but have ₹${portfolio.cash_balance || 0}`);
       }
 
       const { data: existingInvestment, error: existingError } = await supabase
         .from("portfolio_holdings")
         .select("*")
         .eq("symbol", symbol.toUpperCase())
-        .eq("portfolio_id", user.id)
+        .eq("portfolio_id", portfolio.id)
         .single();
 
       if (existingError && existingError.code !== 'PGRST116') {
@@ -125,9 +122,9 @@ export function AddInvestmentForm({ isOpen, onClose, type, title, symbol: initia
           .from("portfolio_holdings")
           .insert({
             symbol: symbol.toUpperCase(),
-            portfolio_id: user.id,
+            portfolio_id: portfolio.id,
             quantity: Number(quantity),
-            average_cost: marketItem.price,
+            average_cost: marketItem.current_price,
           });
 
         if (investmentError) {
@@ -136,24 +133,44 @@ export function AddInvestmentForm({ isOpen, onClose, type, title, symbol: initia
         }
       }
 
-      const newBalance = (userProfile.balance || 0) - totalAmount;
+      // Update portfolio's cash balance
+      const newBalance = (portfolio.cash_balance || 0) - totalAmount;
       
-      // Update user's balance
+      // Update portfolio's cash balance
       const { error: updateError } = await supabase
-        .from("users")
+        .from("portfolios")
         .update({ 
-          balance: newBalance 
+          cash_balance: newBalance 
         })
-        .eq("id", user.id);
+        .eq("id", portfolio.id);
 
       if (updateError) {
         console.error("Update balance error:", updateError);
         throw updateError;
       }
 
-      queryClient.invalidateQueries({ queryKey: ['investments'] });
-      queryClient.invalidateQueries({ queryKey: ['profile'] });
+      // Create a trade record
+      const { error: tradeError } = await supabase
+        .from("trades")
+        .insert({
+          portfolio_id: portfolio.id,
+          symbol: symbol.toUpperCase(),
+          type: "buy",
+          quantity: Number(quantity),
+          price: marketItem.current_price,
+          total_amount: totalAmount,
+          status: "completed"
+        });
+
+      if (tradeError) {
+        console.error("Trade record error:", tradeError);
+        // Not throwing here as it's not critical to the purchase
+      }
+
+      queryClient.invalidateQueries({ queryKey: ['portfolio_holdings'] });
+      queryClient.invalidateQueries({ queryKey: ['portfolios'] });
       queryClient.invalidateQueries({ queryKey: ['marketData'] });
+      queryClient.invalidateQueries({ queryKey: ['trades'] });
 
       toast.success("Investment added successfully");
       onClose();
@@ -172,7 +189,7 @@ export function AddInvestmentForm({ isOpen, onClose, type, title, symbol: initia
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
           <DialogDescription>
-            Enter the quantity you want to purchase. Your current balance will be checked before the transaction.
+            Enter the quantity you want to purchase. Your portfolio balance will be checked before the transaction.
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="grid gap-4 py-4">

@@ -14,7 +14,21 @@ import { generateInvestmentReport } from "@/utils/generatePDF";
 
 interface User {
   id: string;
-  balance?: number;
+  address?: string;
+  bio?: string;
+  created_at?: string;
+  full_name?: string;
+  phone_number?: string;
+  preferences?: any;
+  updated_at?: string;
+}
+
+interface Portfolio {
+  id: string;
+  cash_balance?: number;
+  total_value?: number;
+  name: string;
+  user_id: string;
 }
 
 interface PortfolioHolding {
@@ -31,30 +45,45 @@ export function PortfolioSection() {
   const [selectedInvestment, setSelectedInvestment] = useState<any>(null);
   const queryClient = useQueryClient();
 
-  const { data: profile } = useQuery({
-    queryKey: ['profile'],
+  // Get the current user
+  const { data: userData } = useQuery({
+    queryKey: ['user'],
     queryFn: async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Not authenticated");
-
-      const { data, error } = await supabase
-        .from("users")
-        .select("*")
-        .eq("id", user.id)
-        .single();
-
-      if (error) throw error;
-      return data as User;
+      return user;
     }
   });
 
-  // Fetch investments data
-  const { data: investments = [] } = useQuery({
-    queryKey: ['investments'],
+  // Get the user's portfolio
+  const { data: portfolio } = useQuery({
+    queryKey: ['portfolio'],
+    enabled: !!userData?.id,
     queryFn: async () => {
+      if (!userData) return null;
+      
+      const { data, error } = await supabase
+        .from("portfolios")
+        .select("*")
+        .eq("user_id", userData.id)
+        .single();
+
+      if (error) throw error;
+      return data as Portfolio;
+    }
+  });
+
+  // Fetch portfolio holdings
+  const { data: investments = [] } = useQuery({
+    queryKey: ['portfolio_holdings'],
+    enabled: !!portfolio?.id,
+    queryFn: async () => {
+      if (!portfolio) return [];
+      
       const { data, error } = await supabase
         .from("portfolio_holdings")
         .select("*")
+        .eq("portfolio_id", portfolio.id)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
@@ -80,7 +109,9 @@ export function PortfolioSection() {
     acc[item.symbol] = {
       ...item,
       price: item.current_price,
-      change: item.change_percent || 0
+      change: item.change_percent || 0,
+      type: item.symbol.startsWith('G') ? 'bond' : 
+           (item.symbol.startsWith('S') ? 'mutual_fund' : 'stock') // Fake type based on symbol prefix
     };
     return acc;
   }, {});
@@ -97,14 +128,11 @@ export function PortfolioSection() {
   };
 
   const handleSell = async (quantity: number) => {
-    if (!selectedInvestment) return;
+    if (!selectedInvestment || !portfolio) return;
 
     try {
       const currentPrice = marketData[selectedInvestment.symbol]?.price || selectedInvestment.average_cost;
       const saleAmount = currentPrice * quantity;
-
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("Not authenticated");
 
       if (quantity === selectedInvestment.quantity) {
         // Sell entire investment
@@ -126,19 +154,38 @@ export function PortfolioSection() {
         if (investmentError) throw investmentError;
       }
 
-      // Update user's balance
-      const newBalance = (profile?.balance || 0) + saleAmount;
+      // Update portfolio's cash balance
+      const newBalance = (portfolio.cash_balance || 0) + saleAmount;
       const { error: updateError } = await supabase
-        .from("users")
-        .update({ balance: newBalance })
-        .eq("id", user.id);
+        .from("portfolios")
+        .update({ cash_balance: newBalance })
+        .eq("id", portfolio.id);
 
       if (updateError) throw updateError;
 
+      // Create a trade record
+      const { error: tradeError } = await supabase
+        .from("trades")
+        .insert({
+          portfolio_id: portfolio.id,
+          symbol: selectedInvestment.symbol,
+          type: "sell",
+          quantity: quantity,
+          price: currentPrice,
+          total_amount: saleAmount,
+          status: "completed"
+        });
+
+      if (tradeError) {
+        console.error("Trade record error:", tradeError);
+        // Not throwing here as it's not critical to the sale
+      }
+
       // Invalidate queries
-      queryClient.invalidateQueries({ queryKey: ['investments'] });
-      queryClient.invalidateQueries({ queryKey: ['profile'] });
+      queryClient.invalidateQueries({ queryKey: ['portfolio_holdings'] });
+      queryClient.invalidateQueries({ queryKey: ['portfolios'] });
       queryClient.invalidateQueries({ queryKey: ['marketData'] });
+      queryClient.invalidateQueries({ queryKey: ['trades'] });
 
       toast.success(`Successfully sold ${quantity} units of ${selectedInvestment.symbol}`);
       setShowSellDialog(false);
@@ -160,7 +207,7 @@ export function PortfolioSection() {
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-start">
-        <BalanceDisplay balance={profile?.balance || 0} />
+        <BalanceDisplay balance={portfolio?.cash_balance || 0} />
         <Button 
           onClick={handleDownloadReport}
           className="flex items-center gap-2"
