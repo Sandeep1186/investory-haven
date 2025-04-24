@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import {
   Dialog,
@@ -27,9 +28,16 @@ interface MarketItem {
   name: string;
 }
 
-interface Profile {
+interface User {
   id: string;
-  balance: number;
+  balance?: number;
+  full_name?: string;
+  address?: string;
+  bio?: string;
+  phone_number?: string;
+  preferences?: any;
+  created_at?: string;
+  updated_at?: string;
 }
 
 export function AddInvestmentForm({ isOpen, onClose, type, title, symbol: initialSymbol }: AddInvestmentFormProps) {
@@ -80,10 +88,12 @@ export function AddInvestmentForm({ isOpen, onClose, type, title, symbol: initia
         throw new Error("Couldn't fetch user balance");
       }
 
-      const profile = userData as unknown as Profile;
+      // Cast userData to User type
+      const userProfile = userData as User;
       
-      if (profile.balance < totalAmount) {
-        throw new Error(`Insufficient funds. You need ₹${totalAmount} but have ₹${profile.balance}`);
+      if (!userProfile.balance || userProfile.balance < totalAmount) {
+        const currentBalance = userProfile.balance || 0;
+        throw new Error(`Insufficient funds. You need ₹${totalAmount} but have ₹${currentBalance}`);
       }
 
       const { data: existingInvestment, error: existingError } = await supabase
@@ -126,10 +136,14 @@ export function AddInvestmentForm({ isOpen, onClose, type, title, symbol: initia
         }
       }
 
-      const newBalance = profile.balance - totalAmount;
+      const newBalance = (userProfile.balance || 0) - totalAmount;
+      
+      // Update user's balance
       const { error: updateError } = await supabase
         .from("users")
-        .update({ balance: newBalance })
+        .update({ 
+          balance: newBalance 
+        })
         .eq("id", user.id);
 
       if (updateError) {

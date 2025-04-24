@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -10,6 +11,19 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Download } from "lucide-react";
 import { generateInvestmentReport } from "@/utils/generatePDF";
+
+interface User {
+  id: string;
+  balance?: number;
+}
+
+interface PortfolioHolding {
+  id: string;
+  symbol: string;
+  quantity: number;
+  average_cost: number;
+  portfolio_id: string;
+}
 
 export function PortfolioSection() {
   const [selectedSymbol, setSelectedSymbol] = useState<string | null>(null);
@@ -24,13 +38,13 @@ export function PortfolioSection() {
       if (!user) throw new Error("Not authenticated");
 
       const { data, error } = await supabase
-        .from("profiles")
-        .select("balance")
+        .from("users")
+        .select("*")
         .eq("id", user.id)
         .single();
 
       if (error) throw error;
-      return data;
+      return data as User;
     }
   });
 
@@ -39,9 +53,8 @@ export function PortfolioSection() {
     queryKey: ['investments'],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("investments")
+        .from("portfolio_holdings")
         .select("*")
-        .eq('sold', false)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
@@ -55,7 +68,7 @@ export function PortfolioSection() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("market_data")
-        .select("symbol, name, price, change");
+        .select("symbol, name, current_price, change_percent");
 
       if (error) throw error;
       return data || [];
@@ -64,18 +77,22 @@ export function PortfolioSection() {
 
   // Convert market data array to map for easier lookup
   const marketData = marketDataArray.reduce((acc: any, item: any) => {
-    acc[item.symbol] = item;
+    acc[item.symbol] = {
+      ...item,
+      price: item.current_price,
+      change: item.change_percent || 0
+    };
     return acc;
   }, {});
 
-  const calculateCurrentValue = (investment: any) => {
-    const currentPrice = marketData[investment.symbol]?.price || investment.purchase_price;
+  const calculateCurrentValue = (investment: PortfolioHolding) => {
+    const currentPrice = marketData[investment.symbol]?.price || investment.average_cost;
     return investment.quantity * currentPrice;
   };
 
-  const calculateProfitLoss = (investment: any) => {
+  const calculateProfitLoss = (investment: PortfolioHolding) => {
     const currentValue = calculateCurrentValue(investment);
-    const purchaseValue = investment.quantity * investment.purchase_price;
+    const purchaseValue = investment.quantity * investment.average_cost;
     return ((currentValue - purchaseValue) / purchaseValue) * 100;
   };
 
@@ -83,7 +100,7 @@ export function PortfolioSection() {
     if (!selectedInvestment) return;
 
     try {
-      const currentPrice = marketData[selectedInvestment.symbol]?.price || selectedInvestment.purchase_price;
+      const currentPrice = marketData[selectedInvestment.symbol]?.price || selectedInvestment.average_cost;
       const saleAmount = currentPrice * quantity;
 
       const { data: { user } } = await supabase.auth.getUser();
@@ -92,19 +109,15 @@ export function PortfolioSection() {
       if (quantity === selectedInvestment.quantity) {
         // Sell entire investment
         const { error: investmentError } = await supabase
-          .from("investments")
-          .update({
-            sold: true,
-            sold_at: new Date().toISOString(),
-            sold_price: currentPrice
-          })
+          .from("portfolio_holdings")
+          .delete()
           .eq('id', selectedInvestment.id);
 
         if (investmentError) throw investmentError;
       } else {
         // Partial sell - reduce quantity
         const { error: investmentError } = await supabase
-          .from("investments")
+          .from("portfolio_holdings")
           .update({
             quantity: selectedInvestment.quantity - quantity
           })
@@ -116,7 +129,7 @@ export function PortfolioSection() {
       // Update user's balance
       const newBalance = (profile?.balance || 0) + saleAmount;
       const { error: updateError } = await supabase
-        .from("profiles")
+        .from("users")
         .update({ balance: newBalance })
         .eq("id", user.id);
 
@@ -138,8 +151,7 @@ export function PortfolioSection() {
 
   const handleDownloadReport = () => {
     const totalValue = investments.reduce((total, investment) => {
-      const currentPrice = marketData[investment.symbol]?.price || investment.purchase_price;
-      return total + (currentPrice * investment.quantity);
+      return total + calculateCurrentValue(investment as PortfolioHolding);
     }, 0);
 
     generateInvestmentReport(investments, marketData, totalValue);
@@ -159,12 +171,12 @@ export function PortfolioSection() {
       </div>
 
       <InvestmentInsights 
-        investments={investments} 
+        investments={investments as PortfolioHolding[]} 
         marketData={marketData} 
       />
       
       <InvestmentList
-        investments={investments}
+        investments={investments as PortfolioHolding[]}
         marketData={marketData}
         onSymbolClick={setSelectedSymbol}
         onSellClick={(investment) => {

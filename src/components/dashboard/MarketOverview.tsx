@@ -28,7 +28,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 
 interface MarketItem {
-  id: string;
+  id?: string;
   symbol: string;
   name: string;
   type: 'stock' | 'mutual_fund' | 'bond';
@@ -54,7 +54,6 @@ export function MarketOverview() {
       if (error) throw error;
       // Transform the data to match MarketItem interface
       return data.map(item => ({
-        id: item.id || item.symbol,
         symbol: item.symbol,
         name: item.name,
         type: 'stock', // We'll need to update this when we have the type field
@@ -108,7 +107,7 @@ export function MarketOverview() {
           </TableHeader>
           <TableBody>
             {filteredData.map((item) => (
-              <TableRow key={item.id}>
+              <TableRow key={item.symbol}>
                 <TableCell className="font-medium">
                   <div className="flex items-center gap-2">
                     <span className={`${item.change >= 0 ? 'text-green-500' : 'text-red-500'}`}>
