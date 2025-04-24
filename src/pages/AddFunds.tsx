@@ -73,17 +73,15 @@ export default function AddFunds() {
       // Create a trade record for funds deposit
       const { error: tradeError } = await supabase
         .from("trades")
-        .insert([
-          {
-            portfolio_id: portfolio.id,
-            symbol: "CASH",
-            type: "deposit",
-            quantity: 1,
-            price: Number(amount),
-            total_amount: Number(amount),
-            status: "completed"
-          }
-        ]);
+        .insert({
+          portfolio_id: portfolio.id,
+          symbol: "CASH",
+          type: "deposit",
+          quantity: 1,
+          price: Number(amount),
+          total_amount: Number(amount),
+          status: "completed"
+        });
 
       if (tradeError) throw tradeError;
 

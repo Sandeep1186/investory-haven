@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -7,9 +8,12 @@ import { toast } from "sonner";
 import { MarketItemDetails } from "@/components/market/MarketItemDetails";
 import { useNavigate } from "react-router-dom";
 import { AddInvestmentForm } from "@/components/market/AddInvestmentForm";
+import { Tables } from "@/integrations/supabase/types";
+
+type MarketData = Tables<"market_data">;
 
 export default function StocksList() {
-  const [items, setItems] = useState<any[]>([]);
+  const [items, setItems] = useState<MarketData[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedSymbol, setSelectedSymbol] = useState<string | null>(null);
   const [showAddForm, setShowAddForm] = useState(false);
@@ -20,12 +24,16 @@ export default function StocksList() {
       try {
         const { data, error } = await supabase
           .from("market_data")
-          .select("*")
-          .eq("type", "stock")
-          .order("name");
+          .select("*");
 
         if (error) throw error;
-        setItems(data);
+        
+        // Filter stocks by inferring from their symbol prefix
+        const stocks = data.filter(item => 
+          !item.symbol.startsWith('G') && !item.symbol.startsWith('S')
+        );
+        
+        setItems(stocks);
       } catch (error) {
         toast.error("Failed to load stocks list");
       } finally {

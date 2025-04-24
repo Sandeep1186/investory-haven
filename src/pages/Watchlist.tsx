@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
@@ -11,7 +12,17 @@ import { useNavigate } from "react-router-dom";
 import { Input } from "@/components/ui/input";
 
 type MarketData = Tables<"market_data">;
-type WatchlistItem = Tables<"watchlist">;
+
+// Define an interface for watchlist items since this table doesn't exist in the schema
+interface WatchlistItem {
+  id: string;
+  symbol: string;
+  name: string;
+  price: number;
+  change: number;
+  historical_data: any[];
+  user_id: string;
+}
 
 export default function Watchlist() {
   const navigate = useNavigate();
@@ -38,25 +49,68 @@ export default function Watchlist() {
   });
 
   const { data: watchlistData } = useQuery({
-    queryKey: ['watchlist'],
+    queryKey: ['watchlist-data'],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('watchlist')
+        .from('watchlist_items')
         .select('*')
-        .eq('user_id', (await supabase.auth.getUser()).data.user?.id);
+        .eq('watchlist_id', (await supabase.auth.getUser()).data.user?.id);
 
       if (error) {
         toast.error("Failed to fetch watchlist");
         throw error;
       }
 
-      return data as WatchlistItem[];
+      // Transform the watchlist_items data to match the WatchlistItem interface
+      const transformedData = data.map(item => ({
+        id: item.id,
+        symbol: item.symbol,
+        name: item.symbol, // Default to symbol if name is not available
+        price: 0, // Default values that will be updated with real data
+        change: 0,
+        historical_data: [],
+        user_id: item.watchlist_id
+      }));
+
+      return transformedData as WatchlistItem[];
     }
   });
 
   useEffect(() => {
     if (watchlistData) {
-      setWatchlist(watchlistData);
+      // Fetch the current prices and names for watchlist items
+      const updateWatchlistWithMarketData = async () => {
+        if (!watchlistData.length) return;
+        
+        try {
+          const symbols = watchlistData.map(item => item.symbol);
+          const { data: marketData } = await supabase
+            .from('market_data')
+            .select('*')
+            .in('symbol', symbols);
+          
+          if (marketData) {
+            const updatedWatchlist = watchlistData.map(item => {
+              const marketItem = marketData.find(m => m.symbol === item.symbol);
+              if (marketItem) {
+                return {
+                  ...item,
+                  name: marketItem.name,
+                  price: marketItem.current_price,
+                  change: marketItem.change_percent || 0
+                };
+              }
+              return item;
+            });
+            
+            setWatchlist(updatedWatchlist);
+          }
+        } catch (error) {
+          console.error("Error updating watchlist with market data:", error);
+        }
+      };
+      
+      updateWatchlistWithMarketData();
     }
   }, [watchlistData]);
 
@@ -87,19 +141,44 @@ export default function Watchlist() {
       return;
     }
 
-    const { error } = await supabase
-      .from('watchlist')
+    // First check if user has a watchlist, if not create one
+    let watchlistId: string;
+    const { data: existingWatchlists } = await supabase
+      .from('watchlists')
+      .select('id')
+      .eq('user_id', user.id)
+      .single();
+    
+    if (!existingWatchlists) {
+      const { data: newWatchlist, error: createError } = await supabase
+        .from('watchlists')
+        .insert({
+          user_id: user.id,
+          name: 'Default Watchlist'
+        })
+        .select('id')
+        .single();
+      
+      if (createError) {
+        toast.error("Failed to create watchlist");
+        return;
+      }
+      
+      watchlistId = newWatchlist.id;
+    } else {
+      watchlistId = existingWatchlists.id;
+    }
+
+    // Now add the item to the watchlist
+    const { error: addError } = await supabase
+      .from('watchlist_items')
       .insert({
-        symbol: item.symbol,
-        name: item.name,
-        price: item.price,
-        change: item.change,
-        historical_data: [],
-        user_id: user.id
+        watchlist_id: watchlistId,
+        symbol: item.symbol
       });
 
-    if (error) {
-      if (error.code === '23505') {
+    if (addError) {
+      if (addError.code === '23505') {
         toast.error("This item is already in your watchlist");
       } else {
         toast.error("Failed to add to watchlist");
@@ -107,6 +186,18 @@ export default function Watchlist() {
       return;
     }
 
+    // Add the item to local state too
+    const newWatchlistItem: WatchlistItem = {
+      id: Date.now().toString(), // Temporary ID until we refresh
+      symbol: item.symbol,
+      name: item.name,
+      price: item.current_price,
+      change: item.change_percent || 0,
+      historical_data: [],
+      user_id: user.id
+    };
+    
+    setWatchlist(prev => [...prev, newWatchlistItem]);
     toast.success("Added to watchlist");
     setSearchTerm("");
     setSearchResults([]);
@@ -114,7 +205,7 @@ export default function Watchlist() {
 
   const removeFromWatchlist = async (symbol: string) => {
     const { error } = await supabase
-      .from('watchlist')
+      .from('watchlist_items')
       .delete()
       .eq('symbol', symbol);
 
@@ -173,13 +264,13 @@ export default function Watchlist() {
           else if (payload.eventType === 'UPDATE') {
             setRealtimeData(prev => 
               prev.map(item => 
-                item.id === payload.new.id ? { ...item, ...payload.new } : item
+                item.symbol === payload.new.symbol ? { ...item, ...payload.new } : item
               )
             );
           }
           else if (payload.eventType === 'DELETE') {
             setRealtimeData(prev => 
-              prev.filter(item => item.id !== payload.old.id)
+              prev.filter(item => item.symbol !== payload.old.symbol)
             );
           }
         }
@@ -203,9 +294,15 @@ export default function Watchlist() {
     };
   }, []);
 
-  const renderChart = (type: string) => {
-    const filteredData = realtimeData?.filter(item => item.type === type) || [];
-    const chartTitle = type.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
+  const renderChart = (itemType: string) => {
+    // Filter data by inferred type if not present in the data
+    const filteredData = realtimeData?.filter(item => {
+      const inferredType = item.symbol?.startsWith('G') ? 'bond' : 
+                           item.symbol?.startsWith('S') ? 'mutual_fund' : 'stock';
+      return inferredType === itemType;
+    }) || [];
+    
+    const chartTitle = itemType.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
     
     return (
       <Card className="p-6 bg-white shadow-sm border border-gray-200 rounded-xl">
@@ -237,18 +334,18 @@ export default function Watchlist() {
               <Legend />
               <Line 
                 type="monotone" 
-                dataKey="price" 
-                stroke="#6366f1" 
+                dataKey="current_price" 
                 name="Price"
+                stroke="#6366f1" 
                 strokeWidth={2}
                 dot={{ fill: '#6366f1', strokeWidth: 2 }}
                 isAnimationActive={false}
               />
               <Line 
                 type="monotone" 
-                dataKey="change" 
-                stroke="#22c55e" 
+                dataKey="change_percent" 
                 name="Change %"
+                stroke="#22c55e" 
                 strokeWidth={2}
                 dot={{ fill: '#22c55e', strokeWidth: 2 }}
                 isAnimationActive={false}
@@ -264,17 +361,17 @@ export default function Watchlist() {
                   <h3 className="font-medium text-gray-900">{item.symbol}</h3>
                   <p className="text-sm text-gray-500">{item.name}</p>
                 </div>
-                <div className={`flex items-center ${item.change >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                  {item.change >= 0 ? (
+                <div className={`flex items-center ${(item.change_percent || 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                  {(item.change_percent || 0) >= 0 ? (
                     <TrendingUp className="h-4 w-4 mr-1" />
                   ) : (
                     <TrendingDown className="h-4 w-4 mr-1" />
                   )}
-                  {item.change}%
+                  {item.change_percent || 0}%
                 </div>
               </div>
               <div className="mt-2">
-                <span className="text-lg font-semibold text-gray-900">₹{item.price.toLocaleString()}</span>
+                <span className="text-lg font-semibold text-gray-900">₹{item.current_price?.toLocaleString()}</span>
               </div>
             </div>
           ))}
@@ -364,7 +461,7 @@ export default function Watchlist() {
                   </div>
                 </div>
                 <div className="mt-2 flex justify-between items-center">
-                  <span className="text-lg font-semibold">₹{item.price.toLocaleString()}</span>
+                  <span className="text-lg font-semibold">₹{item.price?.toLocaleString()}</span>
                   <Button
                     variant="destructive"
                     size="sm"
@@ -375,6 +472,11 @@ export default function Watchlist() {
                 </div>
               </div>
             ))}
+            {watchlist.length === 0 && (
+              <div className="p-4 col-span-3 bg-gray-50 rounded-lg text-center">
+                <p className="text-gray-500">No items in your watchlist yet. Use the search above to add items.</p>
+              </div>
+            )}
           </div>
         </Card>
 

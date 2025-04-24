@@ -16,8 +16,19 @@ interface MarketItemDetailsProps {
   symbol: string;
 }
 
+interface MarketItemWithDetails {
+  symbol: string;
+  name: string;
+  current_price: number;
+  change_percent: number;
+  type?: string; 
+  risk_level?: string;
+  minimum_investment?: number;
+  description?: string;
+}
+
 export function MarketItemDetails({ isOpen, onClose, symbol }: MarketItemDetailsProps) {
-  const [item, setItem] = useState<any>(null);
+  const [item, setItem] = useState<MarketItemWithDetails | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -44,29 +55,22 @@ export function MarketItemDetails({ isOpen, onClose, symbol }: MarketItemDetails
         if (!data) throw new Error("Market item not found");
         
         // Add additional info for display
-        const typeMapping: {[key: string]: string} = {
-          'G': 'bond',
-          'S': 'mutual_fund'
+        const enhancedData: MarketItemWithDetails = {
+          ...data,
+          // Infer type from symbol prefix if not available in data
+          type: data.type || 
+            (data.symbol.startsWith('G') ? 'bond' : 
+             data.symbol.startsWith('S') ? 'mutual_fund' : 'stock'),
+          
+          // Infer risk level from type if not available
+          risk_level: data.risk_level || 
+            (data.type === 'bond' || data.symbol.startsWith('G') ? 'LOW' : 
+             data.type === 'mutual_fund' || data.symbol.startsWith('S') ? 'MEDIUM' : 'HIGH'),
+          
+          minimum_investment: data.minimum_investment || 100
         };
         
-        // Infer type from symbol prefix if not available
-        const type = data.type || 
-          (data.symbol.startsWith('G') ? 'bond' : 
-           data.symbol.startsWith('S') ? 'mutual_fund' : 'stock');
-        
-        // Infer risk level from type if not available
-        const risk_level = data.risk_level || 
-          (type === 'bond' ? 'LOW' : 
-           type === 'mutual_fund' ? 'MEDIUM' : 'HIGH');
-        
-        setItem({
-          ...data,
-          type,
-          risk_level,
-          price: data.current_price,
-          change: data.change_percent || 0,
-          minimum_investment: data.minimum_investment || 100
-        });
+        setItem(enhancedData);
       } catch (error: any) {
         toast.error(error.message || "Failed to load market item details");
       } finally {
@@ -110,10 +114,10 @@ export function MarketItemDetails({ isOpen, onClose, symbol }: MarketItemDetails
               <div className="font-medium">Type</div>
               <div className="capitalize">{item.type?.replace('_', ' ')}</div>
               <div className="font-medium">Price</div>
-              <div>₹{item.current_price || item.price}</div>
+              <div>₹{item.current_price}</div>
               <div className="font-medium">Change</div>
-              <div className={item.change_percent >= 0 || item.change >= 0 ? "text-green-600" : "text-red-600"}>
-                {item.change_percent || item.change}%
+              <div className={item.change_percent >= 0 ? "text-green-600" : "text-red-600"}>
+                {item.change_percent}%
               </div>
               <div className="font-medium">Risk Level</div>
               <div className="capitalize">{item.risk_level?.toLowerCase()}</div>

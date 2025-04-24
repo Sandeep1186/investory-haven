@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -68,11 +69,11 @@ export default function SignUp() {
     try {
       setIsLoading(true);
       
-      // First check if user exists
+      // Check if user exists by querying the users table directly
       const { data: existingUser } = await supabase
-        .from('profiles')
-        .select('id')
-        .eq('id', email)
+        .from("users")
+        .select("id")
+        .eq("id", email)
         .single();
 
       if (existingUser) {
