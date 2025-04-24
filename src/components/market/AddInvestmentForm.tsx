@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import {
   Dialog,
@@ -33,13 +32,6 @@ interface Profile {
   balance: number;
 }
 
-interface Investment {
-  id: string;
-  symbol: string;
-  quantity: number;
-  type: string;
-}
-
 export function AddInvestmentForm({ isOpen, onClose, type, title, symbol: initialSymbol }: AddInvestmentFormProps) {
   const [symbol, setSymbol] = useState(initialSymbol || "");
   const [quantity, setQuantity] = useState("");
@@ -59,21 +51,26 @@ export function AddInvestmentForm({ isOpen, onClose, type, title, symbol: initia
         .from("market_data")
         .select("*")
         .eq("symbol", symbol.toUpperCase())
-        .eq("type", type === "mutual" ? "mutual_fund" : type)
         .single();
 
       if (marketError || !marketData) {
         throw new Error("Invalid symbol");
       }
 
-      const marketItem = marketData as MarketItem;
+      const marketItem: MarketItem = {
+        symbol: marketData.symbol,
+        type: type,
+        price: marketData.current_price,
+        name: marketData.name
+      };
+
       const totalAmount = Number(quantity) * marketItem.price;
 
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Not authenticated");
 
-      const { data: profileData, error: profileError } = await supabase
-        .from("profiles")
+      const { data: userData, error: profileError } = await supabase
+        .from("users")
         .select("*")
         .eq("id", user.id)
         .single();
@@ -83,19 +80,17 @@ export function AddInvestmentForm({ isOpen, onClose, type, title, symbol: initia
         throw new Error("Couldn't fetch user balance");
       }
 
-      const profile = profileData as Profile;
+      const profile = userData as unknown as Profile;
       
       if (profile.balance < totalAmount) {
         throw new Error(`Insufficient funds. You need ₹${totalAmount} but have ₹${profile.balance}`);
       }
 
       const { data: existingInvestment, error: existingError } = await supabase
-        .from("investments")
+        .from("portfolio_holdings")
         .select("*")
         .eq("symbol", symbol.toUpperCase())
-        .eq("type", type === "mutual" ? "mutual_fund" : type)
-        .eq("user_id", user.id)
-        .eq("sold", false)
+        .eq("portfolio_id", user.id)
         .single();
 
       if (existingError && existingError.code !== 'PGRST116') {
@@ -103,15 +98,13 @@ export function AddInvestmentForm({ isOpen, onClose, type, title, symbol: initia
         throw existingError;
       }
 
-      const investment = existingInvestment as Investment | null;
-
-      if (investment) {
+      if (existingInvestment) {
         const { error: updateError } = await supabase
-          .from("investments")
+          .from("portfolio_holdings")
           .update({
-            quantity: investment.quantity + Number(quantity)
+            quantity: existingInvestment.quantity + Number(quantity)
           })
-          .eq("id", investment.id);
+          .eq("id", existingInvestment.id);
 
         if (updateError) {
           console.error("Update error:", updateError);
@@ -119,13 +112,12 @@ export function AddInvestmentForm({ isOpen, onClose, type, title, symbol: initia
         }
       } else {
         const { error: investmentError } = await supabase
-          .from("investments")
+          .from("portfolio_holdings")
           .insert({
             symbol: symbol.toUpperCase(),
-            type: type === "mutual" ? "mutual_fund" : type,
+            portfolio_id: user.id,
             quantity: Number(quantity),
-            purchase_price: marketItem.price,
-            user_id: user.id
+            average_cost: marketItem.price,
           });
 
         if (investmentError) {
@@ -136,7 +128,7 @@ export function AddInvestmentForm({ isOpen, onClose, type, title, symbol: initia
 
       const newBalance = profile.balance - totalAmount;
       const { error: updateError } = await supabase
-        .from("profiles")
+        .from("users")
         .update({ balance: newBalance })
         .eq("id", user.id);
 

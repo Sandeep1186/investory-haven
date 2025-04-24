@@ -52,7 +52,17 @@ export function MarketOverview() {
         .order('name');
 
       if (error) throw error;
-      return data as MarketItem[];
+      // Transform the data to match MarketItem interface
+      return data.map(item => ({
+        id: item.id || item.symbol,
+        symbol: item.symbol,
+        name: item.name,
+        type: 'stock', // We'll need to update this when we have the type field
+        price: item.current_price,
+        change: item.change_percent || 0,
+        risk_level: 'MEDIUM', // Default value until we have this field
+        minimum_investment: 100, // Default value until we have this field
+      })) as MarketItem[];
     }
   });
 
