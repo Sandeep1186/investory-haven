@@ -9,126 +9,264 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      portfolio: {
+      market_data: {
         Row: {
-          average_buy_price: number
-          created_at: string
-          id: string
-          quantity: number
-          stock_id: string
-          updated_at: string
-          user_id: string
+          change_percent: number | null
+          current_price: number
+          high_24h: number | null
+          low_24h: number | null
+          market_cap: number | null
+          name: string
+          symbol: string
+          updated_at: string | null
+          volume: number | null
         }
         Insert: {
-          average_buy_price: number
-          created_at?: string
-          id?: string
-          quantity: number
-          stock_id: string
-          updated_at?: string
-          user_id: string
+          change_percent?: number | null
+          current_price: number
+          high_24h?: number | null
+          low_24h?: number | null
+          market_cap?: number | null
+          name: string
+          symbol: string
+          updated_at?: string | null
+          volume?: number | null
         }
         Update: {
-          average_buy_price?: number
-          created_at?: string
+          change_percent?: number | null
+          current_price?: number
+          high_24h?: number | null
+          low_24h?: number | null
+          market_cap?: number | null
+          name?: string
+          symbol?: string
+          updated_at?: string | null
+          volume?: number | null
+        }
+        Relationships: []
+      }
+      portfolio_holdings: {
+        Row: {
+          average_cost: number
+          created_at: string | null
+          id: string
+          portfolio_id: string
+          quantity: number
+          symbol: string
+          updated_at: string | null
+        }
+        Insert: {
+          average_cost: number
+          created_at?: string | null
           id?: string
+          portfolio_id: string
+          quantity: number
+          symbol: string
+          updated_at?: string | null
+        }
+        Update: {
+          average_cost?: number
+          created_at?: string | null
+          id?: string
+          portfolio_id?: string
           quantity?: number
-          stock_id?: string
-          updated_at?: string
-          user_id?: string
+          symbol?: string
+          updated_at?: string | null
         }
         Relationships: [
           {
-            foreignKeyName: "portfolio_stock_id_fkey"
-            columns: ["stock_id"]
+            foreignKeyName: "portfolio_holdings_portfolio_id_fkey"
+            columns: ["portfolio_id"]
             isOneToOne: false
-            referencedRelation: "stocks"
+            referencedRelation: "portfolios"
             referencedColumns: ["id"]
           },
         ]
       }
-      profiles: {
+      portfolios: {
         Row: {
-          avatar_url: string | null
-          created_at: string
-          full_name: string | null
+          cash_balance: number | null
+          created_at: string | null
           id: string
+          name: string
+          total_value: number | null
+          updated_at: string | null
+          user_id: string
         }
         Insert: {
-          avatar_url?: string | null
-          created_at?: string
-          full_name?: string | null
-          id: string
+          cash_balance?: number | null
+          created_at?: string | null
+          id?: string
+          name: string
+          total_value?: number | null
+          updated_at?: string | null
+          user_id: string
         }
         Update: {
-          avatar_url?: string | null
-          created_at?: string
-          full_name?: string | null
+          cash_balance?: number | null
+          created_at?: string | null
           id?: string
-        }
-        Relationships: []
-      }
-      stocks: {
-        Row: {
-          current_price: number
-          id: string
-          last_updated: string
-          name: string
-          symbol: string
-        }
-        Insert: {
-          current_price: number
-          id?: string
-          last_updated?: string
-          name: string
-          symbol: string
-        }
-        Update: {
-          current_price?: number
-          id?: string
-          last_updated?: string
           name?: string
-          symbol?: string
-        }
-        Relationships: []
-      }
-      transactions: {
-        Row: {
-          created_at: string
-          id: string
-          price: number
-          quantity: number
-          stock_id: string
-          total_amount: number
-          type: string
-          user_id: string
-        }
-        Insert: {
-          created_at?: string
-          id?: string
-          price: number
-          quantity: number
-          stock_id: string
-          total_amount: number
-          type: string
-          user_id: string
-        }
-        Update: {
-          created_at?: string
-          id?: string
-          price?: number
-          quantity?: number
-          stock_id?: string
-          total_amount?: number
-          type?: string
+          total_value?: number | null
+          updated_at?: string | null
           user_id?: string
         }
         Relationships: [
           {
-            foreignKeyName: "transactions_stock_id_fkey"
-            columns: ["stock_id"]
+            foreignKeyName: "portfolios_user_id_fkey"
+            columns: ["user_id"]
             isOneToOne: false
-            referencedRelation: "stocks"
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      trades: {
+        Row: {
+          created_at: string | null
+          id: string
+          portfolio_id: string
+          price: number
+          quantity: number
+          status: string
+          symbol: string
+          total_amount: number
+          type: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          portfolio_id: string
+          price: number
+          quantity: number
+          status?: string
+          symbol: string
+          total_amount: number
+          type: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          portfolio_id?: string
+          price?: number
+          quantity?: number
+          status?: string
+          symbol?: string
+          total_amount?: number
+          type?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "trades_portfolio_id_fkey"
+            columns: ["portfolio_id"]
+            isOneToOne: false
+            referencedRelation: "portfolios"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      users: {
+        Row: {
+          address: string | null
+          bio: string | null
+          created_at: string | null
+          full_name: string | null
+          id: string
+          phone_number: string | null
+          preferences: Json | null
+          updated_at: string | null
+        }
+        Insert: {
+          address?: string | null
+          bio?: string | null
+          created_at?: string | null
+          full_name?: string | null
+          id: string
+          phone_number?: string | null
+          preferences?: Json | null
+          updated_at?: string | null
+        }
+        Update: {
+          address?: string | null
+          bio?: string | null
+          created_at?: string | null
+          full_name?: string | null
+          id?: string
+          phone_number?: string | null
+          preferences?: Json | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      watchlist_items: {
+        Row: {
+          created_at: string | null
+          id: string
+          price_alert_high: number | null
+          price_alert_low: number | null
+          symbol: string
+          updated_at: string | null
+          watchlist_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          price_alert_high?: number | null
+          price_alert_low?: number | null
+          symbol: string
+          updated_at?: string | null
+          watchlist_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          price_alert_high?: number | null
+          price_alert_low?: number | null
+          symbol?: string
+          updated_at?: string | null
+          watchlist_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "watchlist_items_watchlist_id_fkey"
+            columns: ["watchlist_id"]
+            isOneToOne: false
+            referencedRelation: "watchlists"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      watchlists: {
+        Row: {
+          created_at: string | null
+          id: string
+          name: string
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          name: string
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          name?: string
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "watchlists_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
             referencedColumns: ["id"]
           },
         ]
